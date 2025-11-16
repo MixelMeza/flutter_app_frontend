@@ -1,3 +1,4 @@
+
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -24,3 +25,5 @@ plugins {
 }
 
 include(":app")
+
+// settings kept minimal; namespace fallback handled in android/build.gradle.kts

@@ -90,7 +90,7 @@ class _LoginVersion7State extends State<LoginVersion7> {
     .withSaturation((h.saturation * 0.48).clamp(0.0, 1.0))
     .withLightness((h.lightness * 1.02).clamp(0.0, 1.0))
     .toColor()
-    .withOpacity(0.94);
+    .withAlpha((0.94 * 255).round());
 
   final darkGradient = LinearGradient(begin: begin, end: end, colors: [AppColors.midnightBlue, derivedMutedMaroon]);
 
@@ -101,7 +101,7 @@ class _LoginVersion7State extends State<LoginVersion7> {
     final titleColor = isDark ? AppColors.alabaster : AppColors.midnightBlue;
   // Use alabaster for borders in dark mode (per request). Use a muted maroon for
   // selectable accents (buttons) but not too intense.
-  final subtitleColor = isDark ? AppColors.tan : AppColors.alabaster.withOpacity(0.9);
+  final subtitleColor = isDark ? AppColors.tan : AppColors.alabaster.withAlpha((0.9 * 255).round());
   final buttonColor = isDark ? derivedMutedMaroon : AppColors.midnightBlue;
 
     return Scaffold(
@@ -137,7 +137,7 @@ class _LoginVersion7State extends State<LoginVersion7> {
                                 color: logoBg,
                                 shape: BoxShape.circle,
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 12, offset: const Offset(0, 6)),
+                                  BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.25), blurRadius: 12, offset: const Offset(0, 6)),
                                 ],
                               ),
                               child: Center(
@@ -164,12 +164,12 @@ class _LoginVersion7State extends State<LoginVersion7> {
                               duration: const Duration(milliseconds: 450),
                               curve: Curves.easeInOut,
                               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.midnightBlue.withOpacity(0.64) : AppColors.alabaster.withOpacity(0.98),
+                                decoration: BoxDecoration(
+                                color: isDark ? AppColors.midnightBlue.withAlpha((0.64 * 255).round()) : AppColors.alabaster.withAlpha((0.98 * 255).round()),
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: isDark ? Colors.black.withOpacity(0.36) : Colors.black.withOpacity(0.12),
+                                    color: isDark ? const Color.fromRGBO(0,0,0,0.36) : const Color.fromRGBO(0,0,0,0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 8),
                                   ),
@@ -246,15 +246,15 @@ class _LoginVersion7State extends State<LoginVersion7> {
                     style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue),
                     readOnly: _emailReadOnly,
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.mail_outline, color: borderColor.withOpacity(0.9)),
+                      prefixIcon: Icon(Icons.mail_outline, color: borderColor.withAlpha((0.9 * 255).round())),
                       labelText: 'Email',
-                      labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withOpacity(0.9) : AppColors.midnightBlue),
+                      labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.9 * 255).round()) : AppColors.midnightBlue),
                       hintText: 'correo@ejemplo.com',
-                        hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withOpacity(0.75) : AppColors.midnightBlue.withOpacity(0.7)),
+                        hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.75 * 255).round()) : AppColors.midnightBlue.withAlpha((0.7 * 255).round())),
                       errorText: _emailError,
                       filled: true,
                       fillColor: Colors.transparent,
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withOpacity(0.12))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor, width: 2)),
                     ),
                   ),
@@ -292,20 +292,20 @@ class _LoginVersion7State extends State<LoginVersion7> {
               onFieldSubmitted: (_) => _submit(),
               style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue),
               decoration: InputDecoration(
-                prefixIcon: Icon(Icons.lock_outline, color: borderColor.withOpacity(0.9)),
+                prefixIcon: Icon(Icons.lock_outline, color: borderColor.withAlpha((0.9 * 255).round())),
                 labelText: 'Contraseña',
-                labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withOpacity(0.9) : AppColors.midnightBlue),
+                labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.9 * 255).round()) : AppColors.midnightBlue),
                 hintText: '••••••••',
-                    hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withOpacity(0.75) : AppColors.midnightBlue.withOpacity(0.7)),
+                  hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.75 * 255).round()) : AppColors.midnightBlue.withAlpha((0.7 * 255).round())),
                     errorText: _passwordError,
                 filled: true,
                 fillColor: Colors.transparent,
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withOpacity(0.12))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor, width: 2)),
                 suffixIcon: IconButton(
                   onPressed: () => setState(() => _obscure = !_obscure),
                   tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
-                  icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: borderColor.withOpacity(0.9)),
+                  icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: borderColor.withAlpha((0.9 * 255).round())),
                 ),
               ),
             ),
@@ -330,10 +330,10 @@ class _LoginVersion7State extends State<LoginVersion7> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _forgotPressed ? (isDark ? buttonColor.withOpacity(0.22) : buttonColor.withOpacity(0.08)) : Colors.transparent,
+                  color: _forgotPressed ? (isDark ? buttonColor.withAlpha((0.22 * 255).round()) : buttonColor.withAlpha((0.08 * 255).round())) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: _forgotPressed
-                      ? [BoxShadow(color: (buttonColor).withOpacity(0.28), blurRadius: 14, spreadRadius: 1)]
+                      ? [BoxShadow(color: buttonColor.withAlpha((0.28 * 255).round()), blurRadius: 14, spreadRadius: 1)]
                       : [],
                 ),
                 child: Text('¿Olvidaste tu contraseña?', style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue)),
@@ -377,10 +377,10 @@ class _LoginVersion7State extends State<LoginVersion7> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _registerPressed ? (isDark ? buttonColor.withOpacity(0.22) : buttonColor.withOpacity(0.08)) : Colors.transparent,
+                    decoration: BoxDecoration(
+                    color: _registerPressed ? (isDark ? buttonColor.withAlpha((0.22 * 255).round()) : buttonColor.withAlpha((0.08 * 255).round())) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: _registerPressed ? [BoxShadow(color: (buttonColor).withOpacity(0.28), blurRadius: 14, spreadRadius: 1)] : [],
+                    boxShadow: _registerPressed ? [BoxShadow(color: buttonColor.withAlpha((0.28 * 255).round()), blurRadius: 14, spreadRadius: 1)] : [],
                   ),
                   child: Text('Registrarse', style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue)),
                 ),

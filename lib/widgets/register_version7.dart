@@ -91,12 +91,12 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
     final end = Alignment.bottomRight;
     final lightGradient = LinearGradient(begin: begin, end: end, colors: [AppColors.midnightBlue, AppColors.lightBlue]);
     final h = HSLColor.fromColor(AppColors.maroon);
-    final derivedMutedMaroon = h.withSaturation((h.saturation * 0.48).clamp(0.0, 1.0)).withLightness((h.lightness * 1.02).clamp(0.0, 1.0)).toColor().withOpacity(0.94);
+    final derivedMutedMaroon = h.withSaturation((h.saturation * 0.48).clamp(0.0, 1.0)).withLightness((h.lightness * 1.02).clamp(0.0, 1.0)).toColor().withAlpha((0.94 * 255).round());
     final darkGradient = LinearGradient(begin: begin, end: end, colors: [AppColors.midnightBlue, derivedMutedMaroon]);
     final bgGradient = isDark ? darkGradient : lightGradient;
     final logoBg = AppColors.alabaster;
     final titleColor = isDark ? AppColors.alabaster : AppColors.midnightBlue;
-    final subtitleColor = isDark ? AppColors.tan : AppColors.alabaster.withOpacity(0.9);
+    final subtitleColor = isDark ? AppColors.tan : AppColors.alabaster.withAlpha((0.9 * 255).round());
     final buttonColor = isDark ? derivedMutedMaroon : AppColors.midnightBlue;
 
     return Scaffold(
@@ -132,7 +132,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                                 color: logoBg,
                                 shape: BoxShape.circle,
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 12, offset: const Offset(0, 6)),
+                                  BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.25), blurRadius: 12, offset: const Offset(0, 6)),
                                 ],
                               ),
                               child: Center(
@@ -155,11 +155,11 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                               curve: Curves.easeInOut,
                               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.midnightBlue.withOpacity(0.64) : AppColors.alabaster.withOpacity(0.98),
+                                color: isDark ? AppColors.midnightBlue.withAlpha((0.64 * 255).round()) : AppColors.alabaster.withAlpha((0.98 * 255).round()),
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: isDark ? Colors.black.withOpacity(0.36) : Colors.black.withOpacity(0.12),
+                                    color: isDark ? const Color.fromRGBO(0,0,0,0.36) : const Color.fromRGBO(0,0,0,0.12),
                                     blurRadius: 18,
                                     offset: const Offset(0, 8),
                                   ),
@@ -230,9 +230,9 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         TextFormField(
           controller: _nameCtrl,
           decoration: InputDecoration(
-            prefixIcon: Icon(Icons.person_outline, color: borderColor.withOpacity(0.9)),
+            prefixIcon: Icon(Icons.person_outline, color: borderColor.withAlpha((0.9 * 255).round())),
             labelText: 'Nombre *',
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor.withOpacity(0.12))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
           ),
           onChanged: (_) => _markTouched('nombre'),
           validator: (v) {
@@ -244,9 +244,9 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         TextFormField(
           controller: _apellidoCtrl,
           decoration: InputDecoration(
-            prefixIcon: Icon(Icons.person, color: borderColor.withOpacity(0.9)),
+            prefixIcon: Icon(Icons.person, color: borderColor.withAlpha((0.9 * 255).round())),
             labelText: 'Apellido *',
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor.withOpacity(0.12))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
           ),
           onChanged: (_) => _markTouched('apellido'),
           validator: (v) {
@@ -274,13 +274,13 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                     _markTouched('tipo_documento');
                     setState(() => _tipoDocumento = v ?? 'DNI');
                   },
-                  decoration: InputDecoration(labelText: 'Tipo documento', prefixIcon: Icon(Icons.badge, color: borderColor.withOpacity(0.9)), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
+                  decoration: InputDecoration(labelText: 'Tipo documento', prefixIcon: Icon(Icons.badge, color: borderColor.withAlpha((0.9 * 255).round())), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _dniCtrl,
                   onChanged: (_) => _markTouched('dni'),
-                  decoration: InputDecoration(labelText: 'Número documento *', prefixIcon: Icon(Icons.document_scanner, color: borderColor.withOpacity(0.9)), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
+                  decoration: InputDecoration(labelText: 'Número documento *', prefixIcon: Icon(Icons.document_scanner, color: borderColor.withAlpha((0.9 * 255).round())), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
                   validator: (v) {
                     if (!_shouldShowError('dni')) return null;
                     return (v == null || v.trim().isEmpty) ? 'Ingrese documento' : null;
@@ -331,7 +331,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
           controller: _emailCtrl,
           onChanged: (_) => _markTouched('email'),
           decoration: InputDecoration(
-            prefixIcon: Icon(Icons.email_outlined, color: borderColor.withOpacity(0.9)),
+            prefixIcon: Icon(Icons.email_outlined, color: borderColor.withAlpha((0.9 * 255).round())),
             labelText: 'Email *',
             isDense: true,
             prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36),
@@ -377,7 +377,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                   decoration: InputDecoration(
                     labelText: 'Fecha nacimiento *',
                     hintText: 'Seleccionar',
-                    prefixIcon: Icon(Icons.calendar_today, color: borderColor.withOpacity(0.9)),
+                    prefixIcon: Icon(Icons.calendar_today, color: borderColor.withAlpha((0.9 * 255).round())),
                     isDense: true,
                     prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
@@ -402,7 +402,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                       if (!_shouldShowError('sexo')) return null;
                       return v == null ? 'Seleccione sexo' : null;
                     },
-                    decoration: InputDecoration(labelText: 'Sexo *', prefixIcon: Icon(Icons.wc, color: borderColor.withOpacity(0.9)), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
+                    decoration: InputDecoration(labelText: 'Sexo *', prefixIcon: Icon(Icons.wc, color: borderColor.withAlpha((0.9 * 255).round())), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
                   );
                 }),
               ],
@@ -435,7 +435,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                     decoration: InputDecoration(
                       labelText: 'Fecha nacimiento *',
                       hintText: 'Seleccionar',
-                      prefixIcon: Icon(Icons.calendar_today, color: borderColor.withOpacity(0.9)),
+                      prefixIcon: Icon(Icons.calendar_today, color: borderColor.withAlpha((0.9 * 255).round())),
                       isDense: true,
                       prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36),
                     ),
@@ -462,7 +462,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
                         if (!_shouldShowError('sexo')) return null;
                         return v == null ? 'Seleccione sexo' : null;
                       },
-                      decoration: InputDecoration(labelText: 'Sexo *', prefixIcon: Icon(Icons.wc, color: borderColor.withOpacity(0.9)), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
+                      decoration: InputDecoration(labelText: 'Sexo *', prefixIcon: Icon(Icons.wc, color: borderColor.withAlpha((0.9 * 255).round())), isDense: true, prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 36)),
                     );
                   }),
                 ),
@@ -476,7 +476,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         TextFormField(
           controller: _telefonoCtrl,
           onChanged: (_) => _markTouched('telefono'),
-          decoration: InputDecoration(labelText: 'Teléfono *', prefixIcon: Icon(Icons.phone, color: borderColor.withOpacity(0.9))),
+          decoration: InputDecoration(labelText: 'Teléfono *', prefixIcon: Icon(Icons.phone, color: borderColor.withAlpha((0.9 * 255).round()))),
           validator: (v) {
             if (!_shouldShowError('telefono')) return null;
             return (v == null || v.trim().isEmpty) ? 'Ingrese teléfono' : null;
@@ -487,7 +487,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         TextFormField(
           controller: _telefonoApoderadoCtrl,
           onChanged: (_) => _markTouched('telefono_apoderado'),
-          decoration: InputDecoration(labelText: 'Tel. apoderado (opcional)', prefixIcon: Icon(Icons.phone_android, color: borderColor.withOpacity(0.9))),
+          decoration: InputDecoration(labelText: 'Tel. apoderado (opcional)', prefixIcon: Icon(Icons.phone_android, color: borderColor.withAlpha((0.9 * 255).round()))),
           keyboardType: TextInputType.phone,
         ),
         const SizedBox(height: 12),
@@ -496,7 +496,7 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         TextFormField(
           controller: _direccionCtrl,
           onChanged: (_) => _markTouched('direccion'),
-          decoration: InputDecoration(labelText: 'Dirección (opcional)', prefixIcon: Icon(Icons.location_on, color: borderColor.withOpacity(0.9))),
+          decoration: InputDecoration(labelText: 'Dirección (opcional)', prefixIcon: Icon(Icons.location_on, color: borderColor.withAlpha((0.9 * 255).round()))),
         ),
         const SizedBox(height: 12),
 
@@ -504,8 +504,8 @@ class _RegisterVersion7State extends State<RegisterVersion7> {
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.midnightBlue.withOpacity(0.08) : AppColors.midnightBlue.withOpacity(0.04),
+            decoration: BoxDecoration(
+            color: isDark ? AppColors.midnightBlue.withAlpha((0.08 * 255).round()) : AppColors.midnightBlue.withAlpha((0.04 * 255).round()),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
