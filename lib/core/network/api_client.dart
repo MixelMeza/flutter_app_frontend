@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class ApiException implements Exception {
   final int? statusCode;
@@ -22,16 +23,16 @@ class ApiClient {
     final uri = Uri.parse(_buildUrl(path));
     try {
       // Basic logging to help debug backend communication
-      print('[ApiClient] POST $uri');
+      debugPrint('[ApiClient] POST $uri');
       final mergedHeaders = _prepareHeaders(headers);
-      if (mergedHeaders.isNotEmpty) print('[ApiClient] Request headers: $mergedHeaders');
-      if (body != null) print('[ApiClient] Request body: $body');
+      if (mergedHeaders.isNotEmpty) debugPrint('[ApiClient] Request headers: $mergedHeaders');
+      if (body != null) debugPrint('[ApiClient] Request body: $body');
       final resp = await _client.post(uri, headers: mergedHeaders, body: body);
         // Response body may be binary; print as string for debugging
         final respBody = resp.body;
-        print('[ApiClient] Response ${resp.statusCode} for $uri');
-        print('[ApiClient] Response headers: ${resp.headers}');
-        print('[ApiClient] Response body: $respBody');
+        debugPrint('[ApiClient] Response ${resp.statusCode} for $uri');
+        debugPrint('[ApiClient] Response headers: ${resp.headers}');
+        debugPrint('[ApiClient] Response body: $respBody');
       // Only treat 401 as an authorization/token problem when the request
       // included an Authorization header. For unauthenticated endpoints
       // (like login) we want to let callers handle 401 themselves.
@@ -46,7 +47,7 @@ class ApiClient {
             final name = pair.substring(0, idx);
             final value = pair.substring(idx + 1);
             _cookies[name] = value;
-            print('[ApiClient] Stored cookie: $name=$value');
+            debugPrint('[ApiClient] Stored cookie: $name=$value');
           }
         } catch (_) {}
       }
@@ -56,8 +57,8 @@ class ApiClient {
       }
       return resp;
     } catch (e, st) {
-      print('[ApiClient] POST $uri failed: $e');
-      print(st);
+      debugPrint('[ApiClient] POST $uri failed: $e');
+      debugPrint(st.toString());
       rethrow;
     }
   }
@@ -65,13 +66,13 @@ class ApiClient {
   Future<http.Response> get(String path, {Map<String, String>? headers}) async {
     final uri = Uri.parse(_buildUrl(path));
     try {
-      print('[ApiClient] GET $uri');
-      if (headers != null) print('[ApiClient] Request headers: $headers');
+      debugPrint('[ApiClient] GET $uri');
+      if (headers != null) debugPrint('[ApiClient] Request headers: $headers');
       final mergedHeaders = _prepareHeaders(headers);
-      if (mergedHeaders.isNotEmpty) print('[ApiClient] Request headers: $mergedHeaders');
+      if (mergedHeaders.isNotEmpty) debugPrint('[ApiClient] Request headers: $mergedHeaders');
       final resp = await _client.get(uri, headers: mergedHeaders);
-      print('[ApiClient] Response ${resp.statusCode} for $uri');
-      print('[ApiClient] Response body: ${resp.body}');
+      debugPrint('[ApiClient] Response ${resp.statusCode} for $uri');
+      debugPrint('[ApiClient] Response body: ${resp.body}');
       final setCookie = resp.headers['set-cookie'];
       if (setCookie != null && setCookie.trim().isNotEmpty) {
         try {
@@ -82,7 +83,7 @@ class ApiClient {
             final name = pair.substring(0, idx);
             final value = pair.substring(idx + 1);
             _cookies[name] = value;
-            print('[ApiClient] Stored cookie: $name=$value');
+            debugPrint('[ApiClient] Stored cookie: $name=$value');
           }
         } catch (_) {}
       }
@@ -91,8 +92,8 @@ class ApiClient {
       }
       return resp;
     } catch (e, st) {
-      print('[ApiClient] GET $uri failed: $e');
-      print(st);
+      debugPrint('[ApiClient] GET $uri failed: $e');
+      debugPrint(st.toString());
       rethrow;
     }
   }
@@ -100,16 +101,16 @@ class ApiClient {
   Future<http.Response> put(String path, {Map<String, String>? headers, Object? body}) async {
     final uri = Uri.parse(_buildUrl(path));
     try {
-      print('[ApiClient] PUT $uri');
-      if (headers != null) print('[ApiClient] Request headers: $headers');
-      if (body != null) print('[ApiClient] Request body: $body');
+      debugPrint('[ApiClient] PUT $uri');
+      if (headers != null) debugPrint('[ApiClient] Request headers: $headers');
+      if (body != null) debugPrint('[ApiClient] Request body: $body');
       final mergedHeaders = _prepareHeaders(headers);
-      if (mergedHeaders.isNotEmpty) print('[ApiClient] Request headers: $mergedHeaders');
-      if (body != null) print('[ApiClient] Request body: $body');
+      if (mergedHeaders.isNotEmpty) debugPrint('[ApiClient] Request headers: $mergedHeaders');
+      if (body != null) debugPrint('[ApiClient] Request body: $body');
       final resp = await _client.put(uri, headers: mergedHeaders, body: body);
-      print('[ApiClient] Response ${resp.statusCode} for $uri');
-      print('[ApiClient] Response headers: ${resp.headers}');
-      print('[ApiClient] Response body: ${resp.body}');
+      debugPrint('[ApiClient] Response ${resp.statusCode} for $uri');
+      debugPrint('[ApiClient] Response headers: ${resp.headers}');
+      debugPrint('[ApiClient] Response body: ${resp.body}');
       final setCookie = resp.headers['set-cookie'];
       if (setCookie != null && setCookie.trim().isNotEmpty) {
         try {
@@ -120,7 +121,7 @@ class ApiClient {
             final name = pair.substring(0, idx);
             final value = pair.substring(idx + 1);
             _cookies[name] = value;
-            print('[ApiClient] Stored cookie: $name=$value');
+            debugPrint('[ApiClient] Stored cookie: $name=$value');
           }
         } catch (_) {}
       }
@@ -129,8 +130,8 @@ class ApiClient {
       }
       return resp;
     } catch (e, st) {
-      print('[ApiClient] PUT $uri failed: $e');
-      print(st);
+      debugPrint('[ApiClient] PUT $uri failed: $e');
+      debugPrint(st.toString());
       rethrow;
     }
   }

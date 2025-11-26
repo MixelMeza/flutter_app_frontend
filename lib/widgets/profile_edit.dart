@@ -239,7 +239,9 @@ class _ProfileEditState extends State<ProfileEdit> {
         merged['foto_url'] = localDataUri;
       }
 
-      // Attempt update with minimal payload first
+      // Attempt update with minimal payload first. Do NOT fallback to sending
+      // the full merged profile — some backends cannot safely merge collection
+      // fields and will throw server-side exceptions (ConcurrentModification).
       try {
         final result = await auth.updateProfile(payload);
         // persist local photo if present
@@ -256,32 +258,17 @@ class _ProfileEditState extends State<ProfileEdit> {
         navigator.pop(result);
         return;
       } catch (e) {
-        // if server returned 500, try with merged payload as a fallback
-        // continue to next attempt
-      }
-
-      // Second attempt: send merged full profile
-      final result = await auth.updateProfile(merged);
-      // persist local photo if present
-      if (localDataUri != null) {
-        final mergedLocal = Map<String, dynamic>.from(result)..addAll({'foto_url': localDataUri});
-        await auth.setLocalProfile(mergedLocal);
-        if (!mounted) return;
-        messenger.showSnackBar(SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green[700]));
-        navigator.pop(mergedLocal);
+        // Surface the server error instead of retrying with a larger payload.
+        debugPrint('[ProfileEdit] updateProfile failed: $e');
+        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red[700]));
         return;
       }
-      // assume success if no exception
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green[700]));
-      navigator.pop(result);
     } catch (e) {
       if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red[700]));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
-
   // helper to map canonical key to common alternates used in profile
   String _mapAltKey(String key) {
     switch (key) {
@@ -348,8 +335,8 @@ class _ProfileEditState extends State<ProfileEdit> {
                           child: GestureDetector(
                             onTap: _isPicking ? null : _pickAndCrop,
                             child: _isPicking
-                                ? const SizedBox(width: 40, height: 40, child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))))
-                                : LeadingIcon(Icons.photo_camera, size: 40.0, backgroundColor: Colors.white, iconColor: const Color(0xFF4A90E2)),
+                              ? const SizedBox(width: 40, height: 40, child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))))
+                              : LeadingIcon(Icons.photo_camera, size: 40.0, backgroundColor: Colors.white),
                           ),
                         ),
                       ),
@@ -360,7 +347,7 @@ class _ProfileEditState extends State<ProfileEdit> {
                           bottom: 0,
                           child: GestureDetector(
                             onTap: _revertPhoto,
-                            child: LeadingIcon(Icons.restore, size: 34.0, backgroundColor: Colors.white, iconColor: const Color(0xFF4A90E2)),
+                            child: LeadingIcon(Icons.restore, size: 34.0, backgroundColor: Colors.white),
                           ),
                         )
                     ],
@@ -479,7 +466,7 @@ class _ProfileEditState extends State<ProfileEdit> {
         fit: BoxFit.cover,
         errorBuilder: (ctx, error, stack) {
           debugPrint('[ProfileEdit] Image.memory error: $error');
-          return Container(color: const Color(0xFFEFF6FF), child: const Center(child: Icon(Icons.person, size: 48, color: Color(0xFF4A90E2))));
+          return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
         },
       );
     }
@@ -487,7 +474,7 @@ class _ProfileEditState extends State<ProfileEdit> {
     final fromUri = _bytesFromDataUri(txt);
     if (fromUri != null) return Image.memory(fromUri, width: 104, height: 104, fit: BoxFit.cover, errorBuilder: (ctx, error, stack) {
       debugPrint('[ProfileEdit] Image.memory(fromUri) error: $error');
-      return Container(color: const Color(0xFFEFF6FF), child: const Center(child: Icon(Icons.person, size: 48, color: Color(0xFF4A90E2))));
+      return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
     });
     // If it's a remote URL, show network image preview so the user sees
     // how the foto will appear before editing.
@@ -497,16 +484,18 @@ class _ProfileEditState extends State<ProfileEdit> {
         width: 104,
         height: 104,
         fit: BoxFit.cover,
+        // Limit decoded image size to lower memory pressure for avatar preview.
+        cacheWidth: (104 * MediaQuery.of(context).devicePixelRatio).round(),
         errorBuilder: (ctx, error, stack) {
           debugPrint('[ProfileEdit] Image.network error: $error');
-          return Container(color: const Color(0xFFEFF6FF), child: const Center(child: Icon(Icons.person, size: 48, color: Color(0xFF4A90E2))));
+          return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
         },
       );
     }
     // fallback placeholder
     return Container(
-      color: const Color(0xFFEFF6FF),
-      child: const Center(child: Icon(Icons.person, size: 48, color: Color(0xFF4A90E2))),
+      color: Theme.of(context).cardColor,
+      child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)),
     );
   }
 }

@@ -24,7 +24,7 @@ class LeadingIcon extends StatelessWidget {
 
     final bg = backgroundColor ??
       (isDark ? const Color.fromRGBO(239, 232, 223, 0.06) : AppColors.tan.withAlpha((0.12 * 255).round()));
-    final fg = iconColor ?? (isDark ? AppColors.tan : AppColors.midnightBlue);
+    final fg = iconColor ?? (isDark ? AppColors.iconOnDark : AppColors.midnightBlue);
 
     return Container(
       width: size,

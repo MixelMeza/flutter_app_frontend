@@ -7,6 +7,11 @@ import '../../domain/usecases/update_profile_usecase.dart';
 import '../../data/datasources/local_data_source.dart';
 import '../../services/cache_service.dart';
 import '../../core/network/api_client.dart';
+import '../../services/api_service.dart' as api_service;
+import '../../data/datasources/residencia_remote_data_source.dart';
+import '../../data/repositories/residencia_repository_impl.dart';
+import '../../domain/usecases/get_my_residencias_simple_usecase.dart';
+import '../../config/api.dart';
 
 class AuthProvider extends ChangeNotifier {
   final LoginUseCase _login;
@@ -21,13 +26,34 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? profile;
   String? displayName;
   String role = 'inquilino';
+  List<Map<String, dynamic>> myResidencias = [];
+  bool loadingResidencias = false;
 
   AuthProvider(this._login, this._logout, this._getProfile, this._registerUser, this._updateProfile, this._localDataSource);
 
   Future<void> init() async {
+    // Load any persisted auth token into ApiService so remote callers can use it
+    try {
+      // First try secure storage (ApiService). If app previously stored token
+      // in SharedPreferences (old behavior), load that and set ApiService.authToken
+      await api_service.ApiService.loadAuthToken();
+    } catch (_) {}
+    try {
+      final legacy = await _localDataSource.getAuthToken();
+      if (legacy != null && legacy.isNotEmpty) {
+        // Populate ApiService in-memory token with legacy token so requests are authorized
+        api_service.ApiService.authToken = legacy;
+        try {
+          // Also persist to secure storage for future runs
+          await api_service.ApiService.saveAuthToken(legacy);
+        } catch (_) {}
+      }
+    } catch (_) {}
     try {
       final themePref = await _localDataSource.getThemePreference();
-      if (themePref != null) isDark = themePref;
+      if (themePref != null) {
+        isDark = themePref;
+      }
     } catch (_) {}
 
     try {
@@ -40,12 +66,19 @@ class AuthProvider extends ChangeNotifier {
       final maybe = me['rol'] ?? me['role'] ?? me['tipo'] ?? me['rol_id'] ?? me['roles'];
       if (maybe is String) {
         final lower = maybe.toLowerCase();
-        if (lower.contains('propiet') || lower.contains('owner')) role = 'propietario';
-        else if (lower.contains('admin')) role = 'admin';
-        else role = 'inquilino';
+        if (lower.contains('propiet') || lower.contains('owner')) {
+          role = 'propietario';
+        } else if (lower.contains('admin')) {
+          role = 'admin';
+        } else {
+          role = 'inquilino';
+        }
       } else if (maybe is int) {
-        if (maybe == 1) role = 'propietario';
-        else if (maybe == 2) role = 'inquilino';
+        if (maybe == 1) {
+          role = 'propietario';
+        } else if (maybe == 2) {
+          role = 'inquilino';
+        }
       }
       // persist role locally so app can restore UI quickly
       try {
@@ -54,11 +87,54 @@ class AuthProvider extends ChangeNotifier {
       loggedIn = true;
     } catch (_) {}
 
+    // After init and profile load, attempt to fetch simplified residencias
+    if (loggedIn) {
+      try {
+        loadingResidencias = true;
+        notifyListeners();
+        final base = baseUrl; // from config/api.dart
+        final remote = ResidenciaRemoteDataSource(baseUrl: base);
+        final repo = ResidenciaRepositoryImpl(remote);
+        final usecase = GetMyResidenciasSimpleUseCase(repo);
+        final list = await usecase.call();
+        myResidencias = List<Map<String, dynamic>>.from(list);
+      } catch (e) {
+        debugPrint('[AuthProvider] fetch residencias error: $e');
+      } finally {
+        loadingResidencias = false;
+      }
+    }
+
     notifyListeners();
+  }
+
+  /// Public method to reload the simplified residencias list on demand.
+  Future<void> reloadResidencias() async {
+    if (!loggedIn) return;
+    try {
+      loadingResidencias = true;
+      notifyListeners();
+      final base = baseUrl;
+      final remote = ResidenciaRemoteDataSource(baseUrl: base);
+      final repo = ResidenciaRepositoryImpl(remote);
+      final usecase = GetMyResidenciasSimpleUseCase(repo);
+      final list = await usecase.call();
+      myResidencias = List<Map<String, dynamic>>.from(list);
+    } catch (e) {
+      debugPrint('[AuthProvider] reloadResidencias error: $e');
+      rethrow;
+    } finally {
+      loadingResidencias = false;
+      notifyListeners();
+    }
   }
 
   Future<void> login(String email, String password) async {
     await _login.call(email, password);
+    // After a successful login, ensure ApiService has the token loaded into memory
+    try {
+      await api_service.ApiService.loadAuthToken();
+    } catch (_) {}
     // refresh profile
     try {
       final me = await _getProfile.call();
@@ -70,16 +146,23 @@ class AuthProvider extends ChangeNotifier {
       final maybe = me['rol'] ?? me['role'] ?? me['tipo'] ?? me['rol_id'] ?? me['roles'];
       if (maybe is String) {
         final lower = maybe.toLowerCase();
-        if (lower.contains('propiet') || lower.contains('owner')) role = 'propietario';
-        else if (lower.contains('admin')) role = 'admin';
-        else role = 'inquilino';
+        if (lower.contains('propiet') || lower.contains('owner')) {
+          role = 'propietario';
+        } else if (lower.contains('admin')) {
+          role = 'admin';
+        } else {
+          role = 'inquilino';
+        }
       } else if (maybe is int) {
-        if (maybe == 1) role = 'propietario';
-        else if (maybe == 2) role = 'inquilino';
+        if (maybe == 1) {
+          role = 'propietario';
+        } else if (maybe == 2) {
+          role = 'inquilino';
+        }
       }
-        try {
-          await _localDataSource.saveUserRole(role);
-        } catch (_) {}
+      try {
+        await _localDataSource.saveUserRole(role);
+      } catch (_) {}
       loggedIn = true;
     } catch (_) {
       loggedIn = true;

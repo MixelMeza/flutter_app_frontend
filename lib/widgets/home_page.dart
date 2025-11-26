@@ -1,7 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
-import 'dart:convert';
+// (no duplicate dart:convert import)
+
 import 'package:intl/intl.dart';
 import '../theme.dart';
 import 'explore_map.dart';
@@ -10,6 +16,10 @@ import 'change_password.dart';
 import 'preferences.dart';
 import 'leading_icon.dart';
 import 'styled_card.dart';
+import 'mis_residencias.dart';
+
+// Top-level helper for compute() to decode base64 into bytes off the UI thread.
+Uint8List _decodeBase64ToBytes(String b64) => base64Decode(b64);
 
 /// Role-aware HomePage with BottomNavigationBar.
 /// Accepts a `role` string: 'inquilino', 'propietario', 'admin'.
@@ -38,45 +48,129 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+/// Lightweight deferred loader for `ExploreMap`.
+/// Shows a small placeholder for `delay` then replaces with the real map.
+class _DeferredExplore extends StatefulWidget {
+  final Duration delay;
+  const _DeferredExplore({Key? key, this.delay = const Duration(milliseconds: 450)}) : super(key: key);
+
+  @override
+  State<_DeferredExplore> createState() => _DeferredExploreState();
+}
+
+class _DeferredExploreState extends State<_DeferredExplore> {
+  bool _showMap = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(widget.delay, () {
+      if (!mounted) return;
+      setState(() => _showMap = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showMap) return const ExploreMap();
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.travel_explore, size: 48),
+        const SizedBox(height: 8),
+        Text('Cargando mapa...', style: Theme.of(context).textTheme.titleMedium),
+      ]),
+    );
+  }
+}
+
 class _HomePageState extends State<HomePage> {
   int _index = 0;
+  // Controller for PageView: initialize with page 0 (same as _index).
+  final PageController _pageController = PageController(initialPage: 0);
 
-  List<Widget> _buildPages(String role) {
-    // Simple pages. Replace 'Explorar' placeholder with actual ExploreMap widget.
+  // Build pages lazily by index to avoid instantiating heavy widgets
+  // (like GoogleMap) during app startup which can cause JNI / I/O pressure
+  // and trigger ANRs. PageView.builder below calls this when a page is needed.
+  Widget _pageForIndex(int index, String role) {
     if (role == 'propietario') {
-      return [
-        const ExploreMap(),
-        _page('Mis Residencias', Icons.apartment),
-        _page('Principal', Icons.home),
-        _page('Contratos', Icons.description),
-        _profilePage(),
-      ];
+      switch (index) {
+        case 0:
+          return const _DeferredExplore();
+        case 1:
+          return const MisResidencias();
+        case 2:
+          return _page('Principal', Icons.home);
+        case 3:
+          return _page('Contratos', Icons.description);
+        case 4:
+          return _profilePage();
+      }
     }
 
     if (role == 'admin') {
-      return [
-        const ExploreMap(),
-        _page('Residencias', Icons.apartment),
-        _page('Usuarios', Icons.groups),
-        _profilePage(),
-      ];
+      switch (index) {
+        case 0:
+          return const _DeferredExplore();
+        case 1:
+          return _page('Residencias', Icons.apartment);
+        case 2:
+          return _page('Usuarios', Icons.groups);
+        case 3:
+          return _profilePage();
+      }
     }
 
     // default inquilino
-    return [
-      const ExploreMap(),
-      _page('Alquiler', Icons.key),
-      _page('Principal', Icons.home),
-      _page('Favoritos', Icons.favorite),
-      _profilePage(),
-    ];
+    switch (index) {
+      case 0:
+        return const _DeferredExplore();
+      case 1:
+        return _page('Alquiler', Icons.key);
+      case 2:
+        return _page('Principal', Icons.home);
+      case 3:
+        return _page('Favoritos', Icons.favorite);
+      case 4:
+        return _profilePage();
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // PageController already initialized at declaration to avoid
+    // late-initialization errors during hot-reload or testing.
+    // No further action needed here; PageView will attach the controller.
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  // Fallback avatar widget when image can't be shown.
+  Widget _avatarFallback(String displayName) {
+    return Center(
+      child: Text(
+        displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+    );
   }
 
   List<BottomNavigationBarItem> _buildItems(String role) {
     if (role == 'propietario') {
+      final auth = Provider.of<AuthProvider>(context, listen: true);
+      final isLoading = auth.loadingResidencias;
+      final iconWidget = isLoading
+          ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Theme.of(context).bottomNavigationBarTheme.selectedItemColor ?? AppColors.maroon)))
+          : const Icon(Icons.apartment);
       return [
         BottomNavigationBarItem(icon: Icon(Icons.travel_explore), label: 'Explorar'),
-        BottomNavigationBarItem(icon: Icon(Icons.apartment), label: 'Resid.'),
+        BottomNavigationBarItem(icon: iconWidget, label: 'Resid.'),
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Principal'),
         BottomNavigationBarItem(icon: Icon(Icons.description), label: 'Contratos'),
         BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Perfil'),
@@ -172,6 +266,8 @@ class _HomePageState extends State<HomePage> {
     final estado = pickString(['estado', 'status']);
     final createdAt = pickString(['created_at', 'createdAt', 'created']);
 
+    final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
       child: Column(
@@ -194,31 +290,28 @@ class _HomePageState extends State<HomePage> {
                   child: ClipOval(
                     child: fotoUrl.isNotEmpty
                         ? (fotoUrl.startsWith('data:')
-                            ? Image.memory(
-                                base64Decode(fotoUrl.split(',').last),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Text(
-                                    displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
+                            ? FutureBuilder<Uint8List>(
+                                future: compute(_decodeBase64ToBytes, fotoUrl.split(',').last),
+                                builder: (context, snap) {
+                                  if (snap.connectionState == ConnectionState.done && snap.hasData) {
+                                    return Image.memory(
+                                      snap.data!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _avatarFallback(displayName),
+                                    );
+                                  }
+                                  if (snap.hasError) return _avatarFallback(displayName);
+                                  return Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70));
+                                },
                               )
                             : Image.network(
-                                fotoUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Text(
-                                    displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ))
-                        : Center(
-                            child: Text(
-                            displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          )),
+                                    fotoUrl,
+                                    fit: BoxFit.cover,
+                                    // Small avatar — limit decoded size to reduce memory usage.
+                                    cacheWidth: (72 * MediaQuery.of(context).devicePixelRatio).round(),
+                                    errorBuilder: (_, __, ___) => _avatarFallback(displayName),
+                                  ))
+                        : _avatarFallback(displayName),
                   ),
                 ),
               const SizedBox(width: 12),
@@ -287,7 +380,7 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('$contratos', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.maroon, fontWeight: FontWeight.bold)),
+                        Text('$contratos', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: isDarkTheme ? AppColors.tan : AppColors.maroon, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         Text('Contratos', style: Theme.of(context).textTheme.bodyMedium),
                       ],
@@ -303,7 +396,7 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('$favoritos', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.maroon, fontWeight: FontWeight.bold)),
+                      Text('$favoritos', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: isDarkTheme ? AppColors.tan : AppColors.maroon, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       Text('Favoritos', style: Theme.of(context).textTheme.bodyMedium),
                     ],
@@ -322,7 +415,7 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('${_formatCurrency(context, saldoAbonado)}', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.maroon, fontWeight: FontWeight.bold)),
+                        Text('${_formatCurrency(context, saldoAbonado)}', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: isDarkTheme ? AppColors.tan : AppColors.maroon, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         Text('Saldo abonado', style: Theme.of(context).textTheme.bodyMedium),
                       ],
@@ -338,7 +431,7 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(ultimaActividad.isNotEmpty ? _formatDate(context, ultimaActividad) : '-', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.midnightBlue, fontWeight: FontWeight.w700)),
+                        Text(ultimaActividad.isNotEmpty ? _formatDate(context, ultimaActividad) : '-', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: isDarkTheme ? AppColors.alabaster : AppColors.midnightBlue, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
                         Text('Última actividad', style: Theme.of(context).textTheme.bodyMedium),
                       ],
@@ -357,7 +450,7 @@ class _HomePageState extends State<HomePage> {
     final labelStyle = theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ?? TextStyle(fontWeight: FontWeight.w600);
 
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      LeadingIcon(icon, backgroundColor: AppColors.lightBlue.withAlpha((0.12 * 255).round())),
+      LeadingIcon(icon),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: labelStyle), const SizedBox(height: 4), Text(value, style: theme.textTheme.bodyMedium)])),
     ]);
@@ -365,7 +458,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _menuTile(IconData icon, String title, {VoidCallback? onTap}) {
     return ListTile(
-      leading: LeadingIcon(icon, backgroundColor: AppColors.tan.withAlpha((0.12 * 255).round())),
+      leading: LeadingIcon(icon),
       title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
@@ -381,11 +474,26 @@ class _HomePageState extends State<HomePage> {
     final unselectedColor = navTheme.unselectedItemColor ?? AppColors.mediumGray;
     final bgColor = navTheme.backgroundColor ?? (isDark ? AppColors.midnightBlue.withAlpha((0.12 * 255).round()) : Colors.white);
 
-    final pages = _buildPages(widget.role);
     final items = _buildItems(widget.role);
 
+    // Determine which index corresponds to the MisResidencias page (if present)
+    int residenciasIndex = -1;
+    if (widget.role == 'propietario') residenciasIndex = 1;
+
+    // Determine page count based on role
+    final int pageCount = (widget.role == 'admin') ? 4 : 5;
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: pageCount,
+        // Allow user to swipe between pages for natural navigation.
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (i) {
+          setState(() => _index = i);
+        },
+        itemBuilder: (context, i) => _pageForIndex(i, widget.role),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: items,
         currentIndex: _index,
@@ -393,7 +501,22 @@ class _HomePageState extends State<HomePage> {
         selectedItemColor: selectedColor,
         unselectedItemColor: unselectedColor,
         backgroundColor: bgColor,
-        onTap: (i) => setState(() => _index = i),
+        onTap: (i) async {
+          // animate the PageView to the selected page for a smooth transition
+          _pageController.animateToPage(i, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+          setState(() => _index = i);
+
+          // If the user tapped the 'Residencias' icon, trigger a reload via AuthProvider
+          if (i == residenciasIndex) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            try {
+              // start reload but don't block the animation
+              auth.reloadResidencias();
+            } catch (e) {
+              debugPrint('[HomePage] error reloading residencias via provider: $e');
+            }
+          }
+        },
       ),
     );
   }

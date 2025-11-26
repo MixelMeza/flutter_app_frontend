@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+// Avoid invoking google_fonts at runtime to prevent async asset loading
+// errors (AssetManifest.json missing). Always return the base TextTheme so
+// the app uses platform fonts and does not crash when assets cannot be read.
+TextTheme _safePoppinsTextTheme(TextTheme base) {
+  // If you'd like GoogleFonts enabled, call GoogleFonts.poppinsTextTheme
+  // during build/packaging where AssetManifest is available.
+  return base;
+}
 
 class AppColors {
   // Base palette
@@ -9,6 +16,7 @@ class AppColors {
   static const Color mediumGray = Color(0xFF6E6E6E);
   static const Color lightBlue = Color(0xFF96C0CE);
   static const Color midnightBlue = Color(0xFF0F414A);
+  static const Color iconOnDark = Color(0xFFEAECED);
 
   // Derived / semantic colors will be provided by AppTheme
 }
@@ -31,7 +39,7 @@ class AppTheme {
         primary: primary,
         onPrimary: AppColors.alabaster,
       ).copyWith(surface: AppColors.alabaster, onSurface: AppColors.midnightBlue),
-      textTheme: GoogleFonts.poppinsTextTheme(
+      textTheme: _safePoppinsTextTheme(
         TextTheme(
           headlineLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: AppColors.midnightBlue),
           titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.midnightBlue),
@@ -111,8 +119,8 @@ class AppTheme {
     final inputFill = const Color.fromRGBO(14, 19, 20, 0.10);
 
     // Card color a touch lighter than surface so the card stands out
-    // Use a near-black card but allow subtle white accents via tileColor below
-    final cardColor = const Color(0xFF0F1516);
+    // Use a mid-dark card to improve separations in dark mode (user requested #2A2A2A)
+    final cardColor = const Color(0xFF2A2A2A);
 
     return ThemeData(
       brightness: Brightness.dark,
@@ -130,17 +138,17 @@ class AppTheme {
         onBackground: AppColors.alabaster,
       ).copyWith(surface: surface, onSurface: AppColors.alabaster),
       // Text styles tuned for dark background (use alabaster for contrast)
-      textTheme: GoogleFonts.poppinsTextTheme(
-        TextTheme(
-          headlineLarge: const TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: AppColors.alabaster),
-          titleLarge: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.alabaster),
-          bodyLarge: const TextStyle(fontSize: 16, color: Color.fromRGBO(239, 232, 223, 0.94)),
-          bodyMedium: const TextStyle(fontSize: 14, color: Color.fromRGBO(239, 232, 223, 0.88)),
+      textTheme: _safePoppinsTextTheme(
+        const TextTheme(
+          headlineLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: AppColors.alabaster),
+          titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.alabaster),
+          bodyLarge: TextStyle(fontSize: 16, color: Color.fromRGBO(239, 232, 223, 0.94)),
+          bodyMedium: TextStyle(fontSize: 14, color: Color.fromRGBO(239, 232, 223, 0.88)),
         ),
       ),
       // Cards and list tiles on dark: stronger but soft shadow so cards read from background
       listTileTheme: ListTileThemeData(
-        iconColor: const Color.fromRGBO(239, 232, 223, 0.92),
+        iconColor: AppColors.iconOnDark,
         textColor: const Color.fromRGBO(239, 232, 223, 0.92),
         // use actual card color so tiles appear as solid cards in dark mode
         tileColor: cardColor,
@@ -176,12 +184,12 @@ class AppTheme {
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: scaffoldBg,
-        iconTheme: const IconThemeData(color: AppColors.alabaster),
+        iconTheme: const IconThemeData(color: AppColors.iconOnDark),
         titleTextStyle: const TextStyle(color: AppColors.alabaster, fontSize: 18, fontWeight: FontWeight.w600),
         elevation: 0,
       ),
       // Ensure icons across the app are visible in dark mode
-      iconTheme: const IconThemeData(color: AppColors.alabaster),
+      iconTheme: const IconThemeData(color: AppColors.iconOnDark),
       // Global shadow color for dark theme (slightly stronger for contrast)
       shadowColor: const Color.fromRGBO(0, 0, 0, 0.32),
       // Divider color to subtly separate sections in dark mode

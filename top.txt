@@ -1,0 +1,15 @@
+[s[999C[999B[6n[u[H[J[?25l[H[J[s[999C[999B[6n[uTasks: 449 total,   1 running, 448 sleeping,   0 stopped,   0 zombie
+  Mem:  4013336K total,  3437856K used,   575480K free,    12232K buffers
+ Swap:  3009996K total,   675248K used,  2334748K free,  1851868K cached
+600%cpu   0%user   0%nice   4%sys 596%idle   0%iow   0%irq   0%sirq   0%host
+[7m  PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS            [0m
+[1m 4024 shell        20   0  10G 5.2M 4.2M R  3.8   0.1   0:00.02 top -n 1 -m 10[m
+ 3895 root          0 -20    0    0    0 I  0.0   0.0   0:00.00 [kworker/4:4H-k+
+ 3827 root          0 -20    0    0    0 I  0.0   0.0   0:00.01 [kworker/5:3H-k+
+ 3808 root          0 -20    0    0    0 I  0.0   0.0   0:00.00 [kworker/1:3H]
+ 3794 u0_a241      10 -10  20G 476M 225M S  0.0  12.1   0:14.35 com.example.app+
+ 3774 root          0 -20    0    0    0 I  0.0   0.0   0:00.01 [kworker/0:4H-k+
+ 3756 system       20   0  16G 107M  56M S  0.0   2.7   0:00.05 com.android.key+
+ 3741 shell        20   0  10G 4.7M 3.9M S  0.0   0.1   0:00.00 abb
+ 3720 shell        20   0  10G 4.1M 3.4M S  0.0   0.1   0:00.04 logcat -v time +
+ 3718 shell        20   0  10G 3.5M 2.8M S  0.0   0.0   0:00.00 sh -c logcat -v+[?25h[0m[999H[K[?25h[?25h[0m[999H[K

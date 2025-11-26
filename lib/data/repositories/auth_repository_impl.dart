@@ -1,6 +1,7 @@
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/remote_data_source.dart';
 import '../datasources/local_data_source.dart';
+import '../../services/api_service.dart' as api_service;
 
 class AuthRepositoryImpl implements AuthRepository {
   final RemoteDataSource remote;
@@ -11,10 +12,35 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Map<String, dynamic>> login(String email, String password) async {
     final result = await remote.login(email, password);
-    // Expect token in result['token'] or similar - store if present
-    final token = result['token'] as String?;
+    // Try to extract a token from common response shapes.
+    String? extractToken(dynamic src) {
+      if (src == null) return null;
+      if (src is String) return src;
+      if (src is Map<String, dynamic>) {
+        final keys = ['token', 'accessToken', 'access_token', 'jwt', 'authToken', 'auth_token'];
+        for (final k in keys) {
+          final v = src[k];
+          if (v is String && v.isNotEmpty) return v;
+        }
+        // also check nested common envelope keys
+        if (src.containsKey('data') && src['data'] is Map<String, dynamic>) {
+          final nested = extractToken(src['data']);
+          if (nested != null && nested.isNotEmpty) return nested;
+        }
+      }
+      return null;
+    }
+
+    final token = extractToken(result);
     if (token != null && token.isNotEmpty) {
       await local.saveAuthToken(token);
+      // Also save to ApiService so in-memory token is populated for outgoing requests
+      try {
+        await api_service.ApiService.saveAuthToken(token);
+      } catch (_) {
+        // best-effort: if secure storage fails, keep token in local storage
+        api_service.ApiService.authToken = token; // at least set in-memory
+      }
     }
     return result;
   }

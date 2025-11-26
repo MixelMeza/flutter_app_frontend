@@ -20,6 +20,12 @@ import 'widgets/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Limit ImageCache to reduce memory pressure on startup and during navigation.
+  // These are conservative defaults; adjust as needed.
+  try {
+    PaintingBinding.instance.imageCache.maximumSize = 100; // items
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // ~50 MB
+  } catch (_) {}
   await setupLocator();
 
   // Resolve required usecases and local data source here so we fail fast
@@ -115,11 +121,16 @@ class _MainAppState extends State<MainApp> {
               _hasValidToken = true;
             } else {
               int expSec = 0;
-              if (exp is int) expSec = exp;
-              else if (exp is String) expSec = int.tryParse(exp) ?? 0;
+              if (exp is int) {
+                expSec = exp;
+              } else if (exp is String) {
+                expSec = int.tryParse(exp) ?? 0;
+              }
               if (expSec > 0) {
                 final expiry = DateTime.fromMillisecondsSinceEpoch(expSec * 1000);
-                if (expiry.isAfter(DateTime.now())) _hasValidToken = true;
+                if (expiry.isAfter(DateTime.now())) {
+                  _hasValidToken = true;
+                }
               }
             }
           } catch (_) {
@@ -158,14 +169,20 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<AuthProvider>(
-      create: (_) => AuthProvider(
-        widget.loginUseCase,
-        widget.logoutUseCase,
-        widget.getProfileUseCase,
-        widget.registerUseCase,
-        widget.updateUseCase,
-        widget.localDataSource,
-      )..init(),
+      create: (context) {
+        // Defer heavy provider initialization until after first frame so
+        // the initial UI can render quickly and avoid blocking startup.
+        final auth = AuthProvider(
+          widget.loginUseCase,
+          widget.logoutUseCase,
+          widget.getProfileUseCase,
+          widget.registerUseCase,
+          widget.updateUseCase,
+          widget.localDataSource,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) => auth.init());
+        return auth;
+      },
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           final themeData = auth.isDark ? AppTheme.darkTheme() : AppTheme.lightTheme();

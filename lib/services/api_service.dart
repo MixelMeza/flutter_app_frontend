@@ -44,16 +44,16 @@ class ApiService {
   }
   // Login: returns token string on success
   static Future<String> login(String username, String password) async {
-    final uri = Uri.parse('${baseUrl}/api/auth/login');
+    final uri = Uri.parse('$baseUrl/api/auth/login');
     final body = jsonEncode({'username': username, 'password': password});
 
     http.Response resp;
     try {
       resp = await http.post(uri, headers: defaultJsonHeaders(), body: body).timeout(const Duration(seconds: 10));
     } on SocketException catch (e) {
-      throw ApiException('Connection error: unable to reach ${baseUrl} (${e.message})');
+      throw ApiException('Connection error: unable to reach $baseUrl (${e.message})');
     } on TimeoutException catch (_) {
-      throw ApiException('Request timeout: no response from ${baseUrl}');
+      throw ApiException('Request timeout: no response from $baseUrl');
     }
     if (resp.statusCode == 200 || resp.statusCode == 201) {
       final decoded = utf8.decode(resp.bodyBytes);
@@ -74,14 +74,14 @@ class ApiService {
 
   // Register user: sends UsuarioCreateDTO payload and returns created usuario JSON
   static Future<Map<String, dynamic>> registerUser(Map<String, dynamic> payload, {String? token}) async {
-    final uri = Uri.parse('${baseUrl}/api/usuarios');
+    final uri = Uri.parse('$baseUrl/api/usuarios');
     http.Response resp;
     try {
       resp = await http.post(uri, headers: defaultJsonHeaders(token), body: jsonEncode(payload)).timeout(const Duration(seconds: 10));
     } on SocketException catch (e) {
-      throw ApiException('Connection error: unable to reach ${baseUrl} (${e.message})');
+      throw ApiException('Connection error: unable to reach $baseUrl (${e.message})');
     } on TimeoutException catch (_) {
-      throw ApiException('Request timeout: no response from ${baseUrl}');
+      throw ApiException('Request timeout: no response from $baseUrl');
     }
 
     if (resp.statusCode == 200 || resp.statusCode == 201) {
@@ -96,14 +96,14 @@ class ApiService {
 
   // Generic GET helper
   static Future<dynamic> get(String path, {String? token}) async {
-    final uri = Uri.parse('${baseUrl}$path');
+    final uri = Uri.parse('$baseUrl$path');
     http.Response resp;
     try {
       resp = await http.get(uri, headers: defaultJsonHeaders(token)).timeout(const Duration(seconds: 10));
     } on SocketException catch (e) {
-      throw ApiException('Connection error: unable to reach ${baseUrl} (${e.message})');
+      throw ApiException('Connection error: unable to reach $baseUrl (${e.message})');
     } on TimeoutException catch (_) {
-      throw ApiException('Request timeout: no response from ${baseUrl}');
+      throw ApiException('Request timeout: no response from $baseUrl');
     }
 
     if (resp.statusCode >= 200 && resp.statusCode < 300) {

@@ -42,7 +42,7 @@ class RemoteDataSourceImpl implements RemoteDataSource {
           if (data is Map<String, dynamic>) return data;
           return Map<String, dynamic>.from(data);
         }
-        triedResponses.add('JSON ${payload.keys.toList()} => ${resp.statusCode} | ${decoded}');
+        triedResponses.add('JSON ${payload.keys.toList()} => ${resp.statusCode} | $decoded');
       } catch (e) {
         triedResponses.add('JSON ${payload.keys.toList()} => EXCEPTION: ${e.toString()}');
       }
@@ -59,7 +59,7 @@ class RemoteDataSourceImpl implements RemoteDataSource {
           if (data is Map<String, dynamic>) return data;
           return Map<String, dynamic>.from(data);
         }
-        triedResponses.add('FORM ${payload.keys.toList()} => ${resp.statusCode} | ${decoded}');
+        triedResponses.add('FORM ${payload.keys.toList()} => ${resp.statusCode} | $decoded');
       } catch (e) {
         triedResponses.add('FORM ${payload.keys.toList()} => EXCEPTION: ${e.toString()}');
       }
@@ -77,7 +77,7 @@ class RemoteDataSourceImpl implements RemoteDataSource {
         if (data is Map<String, dynamic>) return data;
         return Map<String, dynamic>.from(data);
       }
-      triedResponses.add('BASIC => ${resp.statusCode} | ${decoded}');
+      triedResponses.add('BASIC => ${resp.statusCode} | $decoded');
     } catch (e) {
       triedResponses.add('BASIC => EXCEPTION: ${e.toString()}');
     }
@@ -102,38 +102,16 @@ class RemoteDataSourceImpl implements RemoteDataSource {
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updates, String token) async {
     final body = jsonEncode(updates);
     // Preferred: use PUT as specified by the API
-    var resp = await client.put('/api/usuarios/me', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}, body: body);
-    var decoded = utf8.decode(resp.bodyBytes);
-    // If PUT succeeded, return
+    final resp = await client.put('/api/usuarios/me', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}, body: body);
+    final decoded = utf8.decode(resp.bodyBytes);
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       final data = jsonDecode(decoded);
       if (data is Map<String, dynamic>) return data;
       return Map<String, dynamic>.from(data);
     }
 
-    // PUT failed — try POST as a general fallback (some servers expect POST)
-    final putStatus = resp.statusCode;
-    final putBody = decoded;
-    try {
-      resp = await client.post('/api/usuarios/me', headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}, body: body);
-      decoded = utf8.decode(resp.bodyBytes);
-      if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        final data = jsonDecode(decoded);
-        if (data is Map<String, dynamic>) return data;
-        return Map<String, dynamic>.from(data);
-      }
-    } catch (_) {
-      // continue to throw a detailed exception below
-    }
-
-    // Build detailed error message including both responses when available
-    final postStatus = resp.statusCode;
-    final postBody = decoded;
-
-    if (putStatus == 404 || postStatus == 404) throw Exception('Update profile: not found (PUT:$putStatus POST:$postStatus)');
-    if (putStatus == 400 || postStatus == 400) throw Exception('Update profile: bad request - PUT:$putStatus BODY:$putBody | POST:$postStatus BODY:$postBody');
-
-    throw Exception('Update profile failed: PUT:$putStatus BODY:$putBody | POST:$postStatus BODY:$postBody');
+    // Do not attempt POST fallback - server expects PUT for /me. Surface detailed error.
+    throw Exception('Update profile failed: ${resp.statusCode} BODY:$decoded');
   }
 
   @override
