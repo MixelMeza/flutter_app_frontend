@@ -12,7 +12,8 @@ class Contrato {
   final String estado; // 'activo', 'pendiente', 'finalizado', 'cancelado'
   final String? documentoUrl;
   final DateTime? fechaCreacion;
-  
+  final String? residenciaNombre;
+
   Contrato({
     this.id,
     required this.habitacionId,
@@ -27,9 +28,27 @@ class Contrato {
     this.estado = 'pendiente',
     this.documentoUrl,
     this.fechaCreacion,
+    this.residenciaNombre,
   });
-  
+
   factory Contrato.fromJson(Map<String, dynamic> json) {
+    // Buscar el nombre de la residencia en diferentes ubicaciones posibles
+    String? residenciaNombre;
+    if (json['residencia'] is String) {
+      residenciaNombre = json['residencia'];
+    } else if (json['residencia'] is Map && json['residencia'] != null) {
+      residenciaNombre = json['residencia']['nombre'];
+    } else if (json['residencia_nombre'] != null) {
+      residenciaNombre = json['residencia_nombre'];
+    } else if (json['residenciaNombre'] != null) {
+      residenciaNombre = json['residenciaNombre'];
+    } else if (json['solicitud'] is Map && json['solicitud']['residencia'] != null) {
+      final res = json['solicitud']['residencia'];
+      if (res is Map && res['nombre'] != null) {
+        residenciaNombre = res['nombre'];
+      }
+    }
+
     return Contrato(
       id: json['id'],
       habitacionId: json['habitacion_id'] ?? 0,
@@ -46,9 +65,10 @@ class Contrato {
       fechaCreacion: json['fecha_creacion'] != null 
         ? DateTime.parse(json['fecha_creacion']) 
         : null,
+      residenciaNombre: residenciaNombre,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -64,9 +84,10 @@ class Contrato {
       'estado': estado,
       'documento_url': documentoUrl,
       'fecha_creacion': fechaCreacion?.toIso8601String(),
+      'residencia_nombre': residenciaNombre,
     };
   }
-  
+
   bool get isActivo => estado == 'activo';
   bool get isPendiente => estado == 'pendiente';
   bool get isFinalizado => estado == 'finalizado';
