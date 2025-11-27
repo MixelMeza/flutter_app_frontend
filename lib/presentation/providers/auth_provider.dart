@@ -6,7 +6,6 @@ import '../../domain/usecases/register_user_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../data/datasources/local_data_source.dart';
 import '../../services/cache_service.dart';
-import '../../core/network/api_client.dart';
 import '../../services/api_service.dart' as api_service;
 import '../../data/datasources/residencia_remote_data_source.dart';
 import '../../data/repositories/residencia_repository_impl.dart';
@@ -186,44 +185,58 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleTheme(bool v) async {
+  /// Register a new user via usecase and return the response map.
+  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
+    final resp = await _registerUser.call(payload);
     try {
-      final me = await _getProfile.call();
-      profile = me;
-      // Guardar automáticamente el perfil en caché local si no existe
-      try {
-        final cached = await CacheService.getProfile();
-        if (cached == null || cached.isEmpty) {
-          await CacheService.saveProfile(me);
-        }
-      } catch (_) {}
-      displayName = me['displayName'] ?? me['nombre'] ?? me['user'] ?? me['username'] ?? me['email'];
-      final maybe = me['rol'] ?? me['role'] ?? me['tipo'] ?? me['rol_id'] ?? me['roles'];
-      if (maybe is String) {
-        final lower = maybe.toLowerCase();
-        if (lower.contains('propiet') || lower.contains('owner')) {
-          role = 'propietario';
-        } else if (lower.contains('admin')) {
-          role = 'admin';
-        } else {
-          role = 'inquilino';
-        }
-      } else if (maybe is int) {
-        if (maybe == 1) {
-          role = 'propietario';
-        } else if (maybe == 2) {
-          role = 'inquilino';
-        }
-      } else if (maybe is List && maybe.isNotEmpty) {
-        final first = maybe.first;
-        if (first is String) role = first;
-      }
+      await CacheService.saveProfile(resp);
     } catch (_) {}
-      }
-      rethrow;
-    }
+    return resp;
   }
 
+  /// Update profile on the server and persist locally.
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updates) async {
+    final res = await _updateProfile.call(updates);
+    profile = res;
+    try {
+      await CacheService.saveProfile(res);
+    } catch (_) {}
+    displayName = res['displayName'] ?? res['nombre'] ?? res['user'] ?? res['username'] ?? res['email'];
+    final maybe = res['rol'] ?? res['role'] ?? res['tipo'] ?? res['rol_id'] ?? res['roles'];
+    if (maybe is String) {
+      final lower = maybe.toLowerCase();
+      if (lower.contains('propiet') || lower.contains('owner')) {
+        role = 'propietario';
+      } else if (lower.contains('admin')) {
+        role = 'admin';
+      } else {
+        role = 'inquilino';
+      }
+    } else if (maybe is int) {
+      if (maybe == 1) {
+        role = 'propietario';
+      } else if (maybe == 2) {
+        role = 'inquilino';
+      }
+    } else if (maybe is List && maybe.isNotEmpty) {
+      final first = maybe.first;
+      if (first is String) role = first;
+    }
+    try {
+      await _localDataSource.saveUserRole(role);
+    } catch (_) {}
+    notifyListeners();
+    return res;
+  }
+
+  Future<void> toggleTheme(bool v) async {
+    isDark = v;
+    try {
+      await _localDataSource.saveThemePreference(v);
+    } catch (_) {}
+    notifyListeners();
+  }
+ 
   /// Update profile locally (no server call). Persists to cache and notifies listeners.
   Future<void> setLocalProfile(Map<String, dynamic> newProfile) async {
     profile = newProfile;

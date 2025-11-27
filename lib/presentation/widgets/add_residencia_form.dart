@@ -194,8 +194,9 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
   Future<void> _reverseGeocodeAndFill(LatLng latlng) async {
     // Use Google Geocoding API to reverse lookup address components.
     debugPrint('[reverseGeocode] called with lat=${latlng.latitude}, lng=${latlng.longitude}');
+    final messenger = ScaffoldMessenger.of(context);
     if (googleMapsApiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google Maps API key not set - cannot reverse-geocode')));
+      messenger.showSnackBar(const SnackBar(content: Text('Google Maps API key not set - cannot reverse-geocode')));
       return;
     }
     setState(() => _isReverseGeocoding = true);
@@ -309,13 +310,13 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
             debugPrint('[reverseGeocode] nominatim fallback error: $e');
           }
           // If we reach here, both Google and Nominatim failed to provide useful info.
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(gmsg == null ? 'No se encontró dirección para la ubicación seleccionada' : 'Error: $gmsg')));
+          if (mounted) messenger.showSnackBar(SnackBar(content: Text(gmsg == null ? 'No se encontró dirección para la ubicación seleccionada' : 'Error: $gmsg')));
         }
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error geocoding: ${resp.statusCode}')));
+        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error geocoding: ${resp.statusCode}')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al obtener dirección: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('Error al obtener dirección: $e')));
     } finally {
       if (mounted) setState(() => _isReverseGeocoding = false);
     }
@@ -327,10 +328,12 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
     if (!_formKey.currentState!.validate()) return;
     // require a selected location
     if (_pickedLatLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona la ubicación en el mapa antes de crear')));
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(const SnackBar(content: Text('Selecciona la ubicación en el mapa antes de crear')));
       return;
     }
     setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
 
     final residencia = Residencia(
       nombre: _nombreCtrl.text.trim(),
@@ -355,11 +358,11 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
     try {
       final result = await widget.createUseCase.call(residencia, jwt: widget.jwt ?? '');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Residencia creada')));
+        messenger.showSnackBar(const SnackBar(content: Text('Residencia creada')));
         Navigator.of(context).pop(result);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -420,8 +423,9 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
                     // Map picker next to address so user can select location early
                     ElevatedButton.icon(
                       onPressed: () async {
+                        final navigator = Navigator.of(context);
                         final initial = await _determineInitialMapPosition();
-                        final latlng = await Navigator.of(context).push<LatLng?>(MaterialPageRoute(builder: (_) => _FullScreenMapPicker(initial: initial)));
+                        final latlng = await navigator.push<LatLng?>(MaterialPageRoute(builder: (_) => _FullScreenMapPicker(initial: initial)));
                         if (latlng != null) {
                           setState(() => _pickedLatLng = latlng);
                           await _reverseGeocodeAndFill(latlng);

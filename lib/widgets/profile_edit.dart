@@ -108,12 +108,13 @@ class _ProfileEditState extends State<ProfileEdit> {
       return;
     }
     setState(() => _isPicking = true);
+    // Capture navigator/messenger/auth before async gaps to avoid
+    // use_build_context_synchronously lint warnings. Declare them outside
+    // the try so they are available in the catch/finally blocks.
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
     try {
-      // Capture navigator/messenger/auth before async gaps to avoid
-      // use_build_context_synchronously lint warnings.
-      final navigator = Navigator.of(context);
-      final messenger = ScaffoldMessenger.of(context);
-      final auth = Provider.of<AuthProvider>(context, listen: false);
       final picker = ImagePicker();
       final XFile? picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
       if (picked == null) return;
@@ -148,7 +149,6 @@ class _ProfileEditState extends State<ProfileEdit> {
     } catch (e) {
       debugPrint('[ProfileEdit] pickAndCrop error: $e');
       try {
-        final messenger = ScaffoldMessenger.of(context);
         messenger.showSnackBar(SnackBar(content: Text('Error al seleccionar/recortar imagen: ${e.toString()}'), backgroundColor: Colors.red[700]));
       } catch (_) {}
     } finally {
@@ -222,9 +222,12 @@ class _ProfileEditState extends State<ProfileEdit> {
           final dataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
           mergedLocal['foto_url'] = dataUri;
         }
+        // Mark this local profile as pending sync so ConnectivityProvider can detect it
+        mergedLocal['pendingSync'] = true;
+        mergedLocal['pendingAt'] = DateTime.now().toIso8601String();
         await auth.setLocalProfile(mergedLocal);
         if (!mounted) return;
-        messenger.showSnackBar(SnackBar(content: Text('Sin conexión: cambios guardados localmente'), backgroundColor: Colors.orange[700]));
+        messenger.showSnackBar(SnackBar(content: Text('Sin conexión: cambios guardados localmente (se sincronizarán cuando vuelvas a estar online)'), backgroundColor: Colors.orange[700]));
         navigator.pop(mergedLocal);
         return;
       }

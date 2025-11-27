@@ -123,8 +123,10 @@ class _HomePageState extends State<HomePage> {
       switch (index) {
         case 0:
           return const _DeferredExplore();
-        case 1:
-          return const MisResidencias();
+          case 1:
+            // Add a top padding so the header inside `MisResidencias` appears lower
+            // without modifying the `mis_residencias.dart` file itself.
+            return const Padding(padding: EdgeInsets.only(top: 56), child: MisResidencias());
         case 2:
           return _page('Principal', Icons.home);
         case 3:
