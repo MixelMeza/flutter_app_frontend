@@ -9,7 +9,9 @@ import '../data/datasources/residencia_remote_data_source.dart';
 import '../data/repositories/residencia_repository_impl.dart';
 import '../domain/usecases/create_residencia_usecase.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'robust_image.dart';
 import 'view_map.dart';
+import '../presentation/widgets/residence_detail.dart';
 // styled_card removed - not needed after stats deletion
 
 // Small helper that avoids attempting network image loads when device
@@ -21,10 +23,11 @@ class _ResilientNetworkImage extends StatefulWidget {
   final double? height;
 
   const _ResilientNetworkImage({
+    Key? key,
     required this.url,
     this.fit = BoxFit.cover,
     this.height,
-  });
+  }) : super(key: key);
 
   @override
   State<_ResilientNetworkImage> createState() => _ResilientNetworkImageState();
@@ -96,36 +99,18 @@ class _ResilientNetworkImageState extends State<_ResilientNetworkImage> {
       );
     }
 
-    final dpr = MediaQuery.of(context).devicePixelRatio;
-    final int cacheW = (widget.height != null
-        ? (widget.height! * dpr).round()
-        : (400 * dpr).round());
-    return Image.network(
-      widget.url!,
+    // device pixel ratio previously used to compute cacheWidth for Image.network.
+    // RobustImage / CachedNetworkImage handles caching internally so we don't need it here.
+    return RobustImage(
+      source: widget.url,
       fit: widget.fit,
       height: widget.height,
-      cacheWidth: cacheW,
-      loadingBuilder: (context, child, loadingProgress) =>
-          loadingProgress == null
-          ? child
-          : Container(
-              color: AppColors.midnightBlue.withAlpha((0.04 * 255).round()),
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-      errorBuilder: (context, err, st) => Container(
-        color: AppColors.midnightBlue.withAlpha((0.06 * 255).round()),
-        child: Center(
-          child: Icon(Icons.apartment, size: 56, color: AppColors.tan),
-        ),
-      ),
     );
   }
 }
 
 class MisResidencias extends StatefulWidget {
-  const MisResidencias({super.key});
+  const MisResidencias({Key? key}) : super(key: key);
 
   @override
   State<MisResidencias> createState() => MisResidenciasState();
@@ -411,366 +396,447 @@ class MisResidenciasState extends State<MisResidencias>
   Widget _buildResidenciaCard(Map<String, dynamic> r) {
     // Replicate the reference card: rounded 16, shadow, image, badge, two metric boxes and action buttons
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color.fromRGBO(15, 65, 74, 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // image area
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: _ResilientNetworkImage(
-                    url: r['image'] as String?,
-                    fit: BoxFit.cover,
-                    height: 160,
-                  ),
-                ),
-              ),
-              if (_toInt(r['pending']) > 0)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(10),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.group, size: 16, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${r['pending']}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
 
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GestureDetector(
+      onTap: () async {
+        // fetch detail from API and open detail page
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        try {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const Center(child: CircularProgressIndicator()),
+          );
+          final id = (r['id'] is int)
+              ? r['id'] as int
+              : int.tryParse(r['id'].toString()) ?? 0;
+          await auth.getResidenciaById(id); // sigue actualizando el provider
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ResidenceDetailPage(residenceId: id),
+            ),
+          );
+        } catch (e) {
+          try {
+            Navigator.of(context).pop();
+          } catch (_) {}
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error cargando detalle: $e')));
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromRGBO(15, 65, 74, 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // image area
+            Stack(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        r['title'] ?? r['nombre'] ?? '',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? AppColors.alabaster
-                              : Theme.of(context).textTheme.titleLarge?.color,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (r['tipo'] != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white12
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          r['tipo'].toString(),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // contact / email row (if provided)
-                if (r['contacto'] != null || r['email'] != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        if (r['contacto'] != null)
-                          Expanded(
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.phone,
-                                  size: 14,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    r['contacto'].toString(),
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (r['email'] != null)
-                          Expanded(
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.email,
-                                  size: 14,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    r['email'].toString(),
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: SizedBox(
+                    height: 160,
+                    width: double.infinity,
+                    child: _ResilientNetworkImage(
+                      url: r['image'] as String?,
+                      fit: BoxFit.cover,
+                      height: 160,
                     ),
                   ),
-
-                // metrics 2-column grid
-                Row(
-                  children: [
-                    Expanded(
-                      child: Builder(
-                        builder: (ctx) {
-                          final isDarkTile =
-                              Theme.of(ctx).brightness == Brightness.dark;
-                          // In dark mode use a darker tile so text is light; in light mode keep cream
-                          final tileBg = isDarkTile
-                              ? const Color(0xFF373737)
-                              : AppColors.alabaster;
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: tileBg,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: isDarkTile
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.black.withAlpha(28),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withAlpha(8),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                              border: isDarkTile
-                                  ? Border.all(
-                                      color: Colors.white.withOpacity(0.03),
-                                    )
-                                  : null,
+                ),
+                if (_toInt(r['pending']) > 0)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(10),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.group,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${r['pending']}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
                             ),
-                            child: Builder(
-                              builder: (innerCtx) {
-                                // Use light text in dark tiles for readability
-                                final labelColor = isDarkTile
-                                    ? AppColors.alabaster.withOpacity(0.92)
-                                    : AppColors.midnightBlue.withOpacity(0.9);
-                                final valueColor = isDarkTile
-                                    ? AppColors.alabaster
-                                    : const Color(0xFF7F0303);
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Ocupadas',
-                                      style: TextStyle(
-                                        color: labelColor,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '${r['roomsOccupied']}/${r['roomsTotal']}',
-                                      style: TextStyle(
-                                        color: valueColor,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Builder(
-                        builder: (ctx) {
-                          final isDarkTile =
-                              Theme.of(ctx).brightness == Brightness.dark;
-                          final tileBg = isDarkTile
-                              ? const Color(0xFF373737)
-                              : AppColors.alabaster;
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: tileBg,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: isDarkTile
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.black.withAlpha(28),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withAlpha(8),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                              border: isDarkTile
-                                  ? Border.all(
-                                      color: Colors.white.withOpacity(0.03),
-                                    )
-                                  : null,
-                            ),
-                            child: Builder(
-                              builder: (innerCtx) {
-                                final labelColor = isDarkTile
-                                    ? AppColors.alabaster.withOpacity(0.92)
-                                    : AppColors.midnightBlue.withOpacity(0.9);
-                                final valueColor = isDarkTile
-                                    ? AppColors.alabaster
-                                    : const Color(0xFF10B981);
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Ingresos',
-                                      style: TextStyle(
-                                        color: labelColor,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '\$${r['income']}',
-                                      style: TextStyle(
-                                        color: valueColor,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // actions list
-                Column(
-                  children: [
-                    _flatAction(
-                      'Ver habitaciones',
-                      trailing: Icons.chevron_right,
-                    ),
-                    const SizedBox(height: 8),
-                    _flatAction(
-                      'Ver en mapa',
-                      trailing: Icons.map,
-                      onTap: () {
-                        final loc = r['ubicacion'];
-                        final coords = _extractLatLng(loc);
-                        if (coords != null) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ViewMap(
-                                initialPosition: coords,
-                                title: r['nombre'] ?? r['title'],
-                              ),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Ubicación no disponible'),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _flatAction(
-                      'Solicitudes pendientes',
-                      trailing: Icons.chevron_right,
-                      pending: _toInt(r['pending']),
-                    ),
-                    const SizedBox(height: 8),
-                    _flatAction('Gastos', trailing: Icons.chevron_right),
-                  ],
-                ),
+                  ),
               ],
             ),
-          ),
-        ],
+
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          r['title'] ?? r['nombre'] ?? '',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.alabaster
+                                : Theme.of(context).textTheme.titleLarge?.color,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (r['tipo'] != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white12
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            r['tipo'].toString(),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // contact / email row (if provided)
+                  if (r['contacto'] != null || r['email'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          if (r['contacto'] != null)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.phone,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      r['contacto'].toString(),
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (r['email'] != null)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.email,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      r['email'].toString(),
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                  // metrics 2-column grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Builder(
+                          builder: (ctx) {
+                            final isDarkTile =
+                                Theme.of(ctx).brightness == Brightness.dark;
+                            final tileBg = isDarkTile
+                                ? const Color(0xFF373737)
+                                : AppColors.alabaster;
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: tileBg,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: isDarkTile
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha(28),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha(8),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                border: isDarkTile
+                                    ? Border.all(
+                                        color: Colors.white.withOpacity(0.03),
+                                      )
+                                    : null,
+                              ),
+                              child: Builder(
+                                builder: (innerCtx) {
+                                  final labelColor = isDarkTile
+                                      ? AppColors.alabaster.withOpacity(0.92)
+                                      : AppColors.midnightBlue.withOpacity(0.9);
+                                  final valueColor = isDarkTile
+                                      ? AppColors.alabaster
+                                      : const Color(0xFF7F0303);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Ocupadas',
+                                        style: TextStyle(
+                                          color: labelColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${r['roomsOccupied']}/${r['roomsTotal']}',
+                                        style: TextStyle(
+                                          color: valueColor,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Builder(
+                          builder: (ctx) {
+                            final isDarkTile =
+                                Theme.of(ctx).brightness == Brightness.dark;
+                            final tileBg = isDarkTile
+                                ? const Color(0xFF373737)
+                                : AppColors.alabaster;
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: tileBg,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: isDarkTile
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha(28),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha(8),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                border: isDarkTile
+                                    ? Border.all(
+                                        color: Colors.white.withOpacity(0.03),
+                                      )
+                                    : null,
+                              ),
+                              child: Builder(
+                                builder: (innerCtx) {
+                                  final labelColor = isDarkTile
+                                      ? AppColors.alabaster.withOpacity(0.92)
+                                      : AppColors.midnightBlue.withOpacity(0.9);
+                                  final valueColor = isDarkTile
+                                      ? AppColors.alabaster
+                                      : const Color(0xFF10B981);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Ingresos',
+                                        style: TextStyle(
+                                          color: labelColor,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '\$${r['income']}',
+                                        style: TextStyle(
+                                          color: valueColor,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // actions list
+                  Column(
+                    children: [
+                      _flatAction(
+                        'Ver habitaciones',
+                        trailing: Icons.chevron_right,
+                      ),
+                      const SizedBox(height: 8),
+                      _flatAction(
+                        'Ver en mapa',
+                        trailing: Icons.map,
+                        onTap: () async {
+                          final loc = r['ubicacion'];
+                          final coords = _extractLatLng(loc);
+                          if (coords != null) {
+                            final result = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ViewMap(
+                                  initialPosition: coords,
+                                  title: r['nombre'] ?? r['title'],
+                                  ubicacion: loc,
+                                ),
+                              ),
+                            );
+                            if (result == true) {
+                              final auth = Provider.of<AuthProvider>(
+                                context,
+                                listen: false,
+                              );
+                              try {
+                                // Try to fetch the updated residencia detail and update local list
+                                final updated = await auth.getResidenciaById(
+                                  _toInt(r['id']),
+                                );
+                                if (updated.isNotEmpty) {
+                                  final ubic =
+                                      updated['ubicacion'] ??
+                                      updated['ubicacion'];
+                                  if (ubic != null) {
+                                    await auth.updateResidenciaUbicacion(
+                                      _toInt(r['id']),
+                                      Map<String, dynamic>.from(ubic as Map),
+                                    );
+                                  } else {
+                                    await auth.reloadResidencias();
+                                  }
+                                } else {
+                                  await auth.reloadResidencias();
+                                }
+                                if (mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ubicación actualizada'),
+                                    ),
+                                  );
+                              } catch (e) {
+                                try {
+                                  await auth.reloadResidencias();
+                                } catch (_) {}
+                                if (mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Ubicación actualizada'),
+                                    ),
+                                  );
+                              }
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Ubicación no disponible'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _flatAction(
+                        'Solicitudes pendientes',
+                        trailing: Icons.chevron_right,
+                        pending: _toInt(r['pending']),
+                      ),
+                      const SizedBox(height: 8),
+                      _flatAction('Gastos', trailing: Icons.chevron_right),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -976,12 +1042,12 @@ class MisResidenciasState extends State<MisResidencias>
       };
     }).toList();
 
-    Future<void> onRefresh() async {
+    Future<void> _onRefresh() async {
       await auth.reloadResidencias();
     }
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: _onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 24, top: 6),

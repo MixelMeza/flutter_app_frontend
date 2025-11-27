@@ -73,4 +73,37 @@ class ResidenciaRemoteDataSource {
 
     throw Exception('Error ${resp.statusCode}: ${resp.body}');
   }
+
+  Future<Map<String, dynamic>> getResidenciaById(int id, {String jwt = ''}) async {
+    final normalizedBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final url = Uri.parse('$normalizedBase/api/residencias/mine?id=$id');
+    final effectiveToken = (jwt.isNotEmpty) ? jwt : (ApiService.authToken ?? '');
+    final headers = <String, String>{'Content-Type': 'application/json', if (effectiveToken.isNotEmpty) 'Authorization': 'Bearer $effectiveToken'};
+
+    try {
+      debugPrint('[ResidenciaRemote] GET $url');
+      debugPrint('[ResidenciaRemote] headers: $headers');
+    } catch (_) {}
+
+    final resp = await client.get(url, headers: headers).timeout(const Duration(seconds: 8));
+    try {
+      debugPrint('[ResidenciaRemote] response status=${resp.statusCode} bodyLen=${resp.body.length}');
+      debugPrint('[ResidenciaRemote] response headers: ${resp.headers}');
+      debugPrint('[ResidenciaRemote] response body: "${resp.body}"');
+    } catch (_) {}
+
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      if (resp.body.isEmpty) return <String, dynamic>{};
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      // If server returns {data: {...}}
+      if (decoded is Map && decoded['data'] is Map) return Map<String, dynamic>.from(decoded['data'] as Map);
+      throw Exception('Unexpected response shape for residencias/{id}');
+    }
+
+    if (resp.statusCode == 401) {
+      try { ApiService.notifyAuthError(); } catch (_) {}
+    }
+    throw Exception('Error ${resp.statusCode}: ${resp.body}');
+  }
 }

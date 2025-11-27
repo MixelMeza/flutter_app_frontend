@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-// Avoid invoking google_fonts at runtime to prevent async asset loading
-// errors (AssetManifest.json missing). Always return the base TextTheme so
-// the app uses platform fonts and does not crash when assets cannot be read.
+// Use bundled 'Poppins' font declared in `pubspec.yaml` via ThemeData.fontFamily.
+// Avoid using `google_fonts` at runtime to prevent AssetManifest lookups before
+// the asset bundle is available.
 TextTheme _safePoppinsTextTheme(TextTheme base) {
-  // If you'd like GoogleFonts enabled, call GoogleFonts.poppinsTextTheme
-  // during build/packaging where AssetManifest is available.
-  return base;
+  return base.apply(fontFamily: 'Poppins');
 }
 
 class AppColors {
@@ -31,6 +29,9 @@ class AppTheme {
 
     return ThemeData(
       brightness: Brightness.light,
+      // Prefer the bundled font family name so assets/fonts/Poppins-*.ttf
+      // (declared in pubspec.yaml) are used when present.
+      fontFamily: 'Poppins',
       primaryColor: primary,
       // Light scaffold/background should use the requested alabaster color (#EFE8DF)
       scaffoldBackgroundColor: AppColors.alabaster,
@@ -149,6 +150,7 @@ class AppTheme {
 
     return ThemeData(
       brightness: Brightness.dark,
+      fontFamily: 'Poppins',
       primaryColor: primary,
       // Use a solid scaffold background for dark mode so individual pages
       // don't unexpectedly inherit transparency. Specific screens that need

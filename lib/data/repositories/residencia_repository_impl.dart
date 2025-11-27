@@ -37,4 +37,15 @@ class ResidenciaRepositoryImpl implements ResidenciaRepository {
     final effectiveJwt = (jwt.isNotEmpty) ? jwt : (api_service.ApiService.authToken ?? '');
     return remote.getMyResidenciasSimple(jwt: effectiveJwt);
   }
+
+  @override
+  Future<Map<String, dynamic>> getResidenciaById(int id, {String jwt = ''}) async {
+    if ((jwt.isEmpty) && (api_service.ApiService.authToken == null)) {
+      try {
+        await api_service.ApiService.loadAuthToken();
+      } catch (_) {}
+    }
+    final effectiveJwt = (jwt.isNotEmpty) ? jwt : (api_service.ApiService.authToken ?? '');
+    return remote.getResidenciaById(id, jwt: effectiveJwt);
+  }
 }

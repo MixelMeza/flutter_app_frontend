@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme.dart';
 import 'di/locator.dart';
+import 'utils/preload_fonts.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/connectivity_provider.dart';
 import 'data/datasources/local_data_source.dart';
@@ -14,11 +16,12 @@ import 'domain/usecases/register_user_usecase.dart';
 import 'domain/usecases/update_profile_usecase.dart';
 import 'widgets/login_version7.dart';
 import 'widgets/register_version7.dart';
-import 'services/api_service.dart';
+import 'services/api_service.dart' as api_service;
 import 'services/cache_service.dart';
 // connectivity import removed — not used in this file
 
 import 'widgets/home_page.dart';
+
 // Clave global para navegación, accesible desde otros archivos
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -30,6 +33,14 @@ void main() async {
   } catch (_) {}
   await setupLocator();
 
+  // Try to preload the Poppins font files so UI renders with the intended
+  // font as early as possible. This will silently continue if the network
+  // fetch fails.
+  try {
+    await preloadPoppinsFonts();
+  } catch (_) {}
+
+  // Resolve required usecases and local data source here so we fail fast
   final loginUseCase = locator<LoginUseCase>();
   final logoutUseCase = locator<LogoutUseCase>();
   final getProfileUseCase = locator<GetProfileUseCase>();
@@ -85,7 +96,10 @@ class _MainAppState extends State<MainApp> {
   bool _hasValidToken = false;
   // _localToken removed (not used) to avoid unused-field lint
 
-  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<void>? _authErrorSub;
 
   @override
   void initState() {
@@ -99,7 +113,12 @@ class _MainAppState extends State<MainApp> {
       if (profile != null) {
         setState(() {
           _cachedProfile = profile;
-          _displayName = profile['displayName'] ?? profile['nombre'] ?? profile['user'] ?? profile['username'] ?? profile['email'];
+          _displayName =
+              profile['displayName'] ??
+              profile['nombre'] ??
+              profile['user'] ??
+              profile['username'] ??
+              profile['email'];
           _prefillEmail = profile['email'] ?? _prefillEmail;
         });
       }
@@ -134,7 +153,9 @@ class _MainAppState extends State<MainApp> {
                 expSec = int.tryParse(exp) ?? 0;
               }
               if (expSec > 0) {
-                final expiry = DateTime.fromMillisecondsSinceEpoch(expSec * 1000);
+                final expiry = DateTime.fromMillisecondsSinceEpoch(
+                  expSec * 1000,
+                );
                 if (expiry.isAfter(DateTime.now())) {
                   _hasValidToken = true;
                 }
@@ -155,12 +176,19 @@ class _MainAppState extends State<MainApp> {
   // Try to extract a normalized role string from a cached profile map.
   String _roleFromProfile(Map<String, dynamic>? profile) {
     if (profile == null) return 'inquilino';
-    final maybe = profile['rol'] ?? profile['role'] ?? profile['tipo'] ?? profile['rol_id'] ?? profile['roles'];
+    final maybe =
+        profile['rol'] ??
+        profile['role'] ??
+        profile['tipo'] ??
+        profile['rol_id'] ??
+        profile['roles'];
     if (maybe is String) {
       final lower = maybe.toLowerCase();
-      if (lower.contains('propiet') || lower.contains('owner')) return 'propietario';
+      if (lower.contains('propiet') || lower.contains('owner'))
+        return 'propietario';
       if (lower.contains('admin')) return 'admin';
-      if (lower.contains('inquil') || lower.contains('tenant')) return 'inquilino';
+      if (lower.contains('inquil') || lower.contains('tenant'))
+        return 'inquilino';
       if (lower.contains('prop')) return 'propietario';
       return 'inquilino';
     } else if (maybe is int) {
@@ -192,7 +220,54 @@ class _MainAppState extends State<MainApp> {
       },
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
-          final themeData = auth.isDark ? AppTheme.darkTheme() : AppTheme.lightTheme();
+          // Subscribe once to global auth error stream to enforce logout
+          if (_authErrorSub == null) {
+            _authErrorSub = api_service.ApiService.onAuthError.listen((
+              _,
+            ) async {
+              try {
+                // Use navigator key context to find the provider and logout
+                final ctx = _navigatorKey.currentContext;
+                if (ctx != null) {
+                  final provider = Provider.of<AuthProvider>(
+                    ctx,
+                    listen: false,
+                  );
+                  await provider.logout();
+                }
+              } catch (_) {}
+
+              // Also clear any locally cached token/profile in MainApp and local data source
+              try {
+                await widget.localDataSource.clearAuthToken();
+              } catch (_) {}
+              setState(() {
+                _hasValidToken = false;
+                _cachedProfile = null;
+                _cachedRole = null;
+                _prefillEmail = null;
+                _displayName = null;
+              });
+
+              // Navegación explícita: reemplaza la ruta actual por la pantalla de login
+              try {
+                final nav = _navigatorKey.currentState;
+                if (nav != null) {
+                  nav.pushNamedAndRemoveUntil('/', (route) => false);
+                }
+              } catch (_) {}
+
+              // Show a global message via scaffold messenger y asegura que la UI va al login
+              _scaffoldMessengerKey.currentState?.showSnackBar(
+                const SnackBar(
+                  content: Text('Token inválido. Se ha cerrado la sesión.'),
+                ),
+              );
+            });
+          }
+          final themeData = auth.isDark
+              ? AppTheme.darkTheme()
+              : AppTheme.lightTheme();
 
           return AnimatedTheme(
             data: themeData,
@@ -207,158 +282,185 @@ class _MainAppState extends State<MainApp> {
                 GlobalWidgetsLocalizations.delegate,
                 GlobalCupertinoLocalizations.delegate,
               ],
-              supportedLocales: const [
-                Locale('es', 'ES'),
-                Locale('en', ''),
-              ],
+              supportedLocales: const [Locale('es', 'ES'), Locale('en', '')],
               theme: themeData,
               home: Scaffold(
                 body: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
-                    child: (auth.loggedIn || (_hasValidToken && (_cachedProfile != null || _cachedRole != null)))
-                        ? HomePage.withUserProvider(
-                            onLogout: () async {
-                              await auth.logout();
-                              try {
-                                await widget.localDataSource.clearAuthToken();
-                              } catch (_) {}
-                              setState(() {
-                                _hasValidToken = false;
-                                _cachedProfile = null;
-                                _cachedRole = null;
-                                _prefillEmail = null;
-                                _displayName = null;
-                              });
-                              _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
-                            },
-                            email: _prefillEmail,
-                            displayName: auth.displayName ?? _displayName,
-                            profile: auth.profile ?? _cachedProfile,
-                            role: auth.profile != null ? auth.role : (_cachedRole ?? _roleFromProfile(_cachedProfile)),
-                            isDarkMode: auth.isDark,
-                            onToggleTheme: (v) async => auth.toggleTheme(v),
-                          )
+                  child:
+                      (auth.loggedIn ||
+                          (_hasValidToken &&
+                              (_cachedProfile != null || _cachedRole != null)))
+                      ? HomePage.withUserProvider(
+                          onLogout: () async {
+                            await auth.logout();
+                            try {
+                              await widget.localDataSource.clearAuthToken();
+                            } catch (_) {}
+                            setState(() {
+                              _hasValidToken = false;
+                              _cachedProfile = null;
+                              _cachedRole = null;
+                              _prefillEmail = null;
+                              _displayName = null;
+                            });
+                            _scaffoldMessengerKey.currentState?.showSnackBar(
+                              const SnackBar(content: Text('Sesión cerrada')),
+                            );
+                          },
+                          email: _prefillEmail,
+                          displayName: auth.displayName ?? _displayName,
+                          profile: auth.profile ?? _cachedProfile,
+                          role: auth.profile != null
+                              ? auth.role
+                              : (_cachedRole ??
+                                    _roleFromProfile(_cachedProfile)),
+                          isDarkMode: auth.isDark,
+                          onToggleTheme: (v) async => auth.toggleTheme(v),
+                        )
                       : (_showRegister
-                          ? RegisterVersion7(
-                              key: const ValueKey('register'),
-                              appName: 'LivUp',
-                              logo: ClipOval(
-                                child: Container(
-                                  color: Colors.white,
-                                  child: Image.asset(
-                                    'assets/logo.png',
-                                    width: 106,
-                                    height: 106,
-                                    fit: BoxFit.contain,
+                            ? RegisterVersion7(
+                                key: const ValueKey('register'),
+                                appName: 'LivUp',
+                                logo: ClipOval(
+                                  child: Container(
+                                    color: Colors.white,
+                                    child: Image.asset(
+                                      'assets/logo.png',
+                                      width: 106,
+                                      height: 106,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              isDarkMode: auth.isDark,
-                              onToggleTheme: (v) => auth.toggleTheme(v),
-                              onRegister: (data) async {
-                                try {
-                                  final resp = await auth.register(data);
-                                  String email = '';
+                                isDarkMode: auth.isDark,
+                                onToggleTheme: (v) => auth.toggleTheme(v),
+                                onRegister: (data) async {
                                   try {
-                                    final maybeEmail = (data['email'] ?? '') as String;
-                                    if (maybeEmail.trim().isNotEmpty) {
-                                      email = maybeEmail.trim();
-                                    } else {
-                                      final respEmail = resp['email'];
-                                      final respUser = resp['username'];
-                                      if (respEmail is String && respEmail.trim().isNotEmpty) {
-                                        email = respEmail.trim();
-                                      } else if (respUser is String && respUser.trim().isNotEmpty) {
-                                        email = respUser.trim();
+                                    final resp = await auth.register(data);
+                                    String email = '';
+                                    try {
+                                      final maybeEmail =
+                                          (data['email'] ?? '') as String;
+                                      if (maybeEmail.trim().isNotEmpty) {
+                                        email = maybeEmail.trim();
+                                      } else {
+                                        final respEmail = resp['email'];
+                                        final respUser = resp['username'];
+                                        if (respEmail is String &&
+                                            respEmail.trim().isNotEmpty) {
+                                          email = respEmail.trim();
+                                        } else if (respUser is String &&
+                                            respUser.trim().isNotEmpty) {
+                                          email = respUser.trim();
+                                        }
                                       }
-                                    }
-                                  } catch (_) {}
+                                    } catch (_) {}
 
-                                  String? displayName;
-                                  try {
-                                    final maybeUser = (data['username'] ?? data['user'] ?? '') as String;
-                                    if (maybeUser.trim().isNotEmpty) {
-                                      displayName = maybeUser.trim();
-                                    }
-                                  } catch (_) {}
-                                  try {
-                                    if (displayName == null || displayName.isEmpty) {
-                                      final respUser = resp['username'];
-                                      final respName = resp['nombre'];
-                                      final respLast = resp['apellido'];
-                                      if (respUser is String && respUser.trim().isNotEmpty) {
-                                        displayName = respUser.trim();
-                                      } else if (respName is String && respName.trim().isNotEmpty) {
-                                        final last = (respLast is String) ? respLast : '';
-                                        displayName = ('$respName $last').trim();
+                                    String? displayName;
+                                    try {
+                                      final maybeUser =
+                                          (data['username'] ??
+                                                  data['user'] ??
+                                                  '')
+                                              as String;
+                                      if (maybeUser.trim().isNotEmpty) {
+                                        displayName = maybeUser.trim();
                                       }
-                                    }
-                                  } catch (_) {}
+                                    } catch (_) {}
+                                    try {
+                                      if (displayName == null ||
+                                          displayName.isEmpty) {
+                                        final respUser = resp['username'];
+                                        final respName = resp['nombre'];
+                                        final respLast = resp['apellido'];
+                                        if (respUser is String &&
+                                            respUser.trim().isNotEmpty) {
+                                          displayName = respUser.trim();
+                                        } else if (respName is String &&
+                                            respName.trim().isNotEmpty) {
+                                          final last = (respLast is String)
+                                              ? respLast
+                                              : '';
+                                          displayName = ('$respName $last')
+                                              .trim();
+                                        }
+                                      }
+                                    } catch (_) {}
 
-                                  setState(() {
-                                    _prefillEmail = email;
-                                    _displayName = displayName;
-                                    _showRegister = false;
-                                  });
-                                } catch (e) {
-                                  _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(content: Text('Error al registrar: ${e.toString()}')));
-                                }
-                              },
-                              onLogin: () => setState(() => _showRegister = false),
-                            )
-                          : LoginVersion7(
-                              key: const ValueKey('login'),
-                              appName: 'LivUp',
-                              logo: ClipOval(
-                                child: Container(
-                                  color: Colors.white,
-                                  child: Image.asset(
-                                    'assets/logo.png',
-                                    width: 106,
-                                    height: 106,
-                                    fit: BoxFit.contain,
+                                    setState(() {
+                                      _prefillEmail = email;
+                                      _displayName = displayName;
+                                      _showRegister = false;
+                                    });
+                                  } catch (e) {
+                                    _scaffoldMessengerKey.currentState
+                                        ?.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Error al registrar: ${e.toString()}',
+                                            ),
+                                          ),
+                                        );
+                                  }
+                                },
+                                onLogin: () =>
+                                    setState(() => _showRegister = false),
+                              )
+                            : LoginVersion7(
+                                key: const ValueKey('login'),
+                                appName: 'LivUp',
+                                logo: ClipOval(
+                                  child: Container(
+                                    color: Colors.white,
+                                    child: Image.asset(
+                                      'assets/logo.png',
+                                      width: 106,
+                                      height: 106,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              isDarkMode: auth.isDark,
-                              onToggleTheme: (v) => auth.toggleTheme(v),
-                              initialEmail: _prefillEmail,
-                              onLogin: (email, pass) async {
-                                final navContext = navigatorKey.currentContext ?? context;
-                                showDialog(
-                                  context: navContext,
-                                  barrierDismissible: false,
-                                  useRootNavigator: true,
-                                  builder: (_) => const Center(child: CircularProgressIndicator()),
-                                );
-                                try {
-                                  await auth.login(email, pass);
-                                  setState(() {
-                                    _prefillEmail = email;
-                                    _displayName = auth.displayName ?? _displayName;
-                                  });
-                                } catch (e) {
-                                  if (e is ApiException && e.statusCode == 401) {
-                                    rethrow;
+                                isDarkMode: auth.isDark,
+                                onToggleTheme: (v) => auth.toggleTheme(v),
+                                initialEmail: _prefillEmail,
+                                onLogin: (email, pass) async {
+                                  final navContext =
+                                      navigatorKey.currentContext ?? context;
+                                  showDialog(
+                                    context: navContext,
+                                    barrierDismissible: false,
+                                    useRootNavigator: true,
+                                    builder: (_) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                  try {
+                                    await auth.login(email, pass);
+                                    setState(() {
+                                      _prefillEmail = email;
+                                      _displayName =
+                                          auth.displayName ?? _displayName;
+                                    });
+                                  } catch (e) {
+                                    // No mostrar ningún mensaje ni snackbar en error de login, solo el inline en el widget de login.
+                                  } finally {
+                                    if (navigatorKey.currentState?.canPop() ==
+                                        true)
+                                      navigatorKey.currentState?.pop();
                                   }
-                                  if (e is ApiException) {
-                                    final code = e.statusCode;
-                                    if (code == null || code >= 500) {
-                                      var msg = e.message;
-                                      _showStyledMessage('Error al iniciar sesión: $msg', MessageSeverity.error);
-                                    }
-                                  } else {
-                                    _showStyledMessage('Error al iniciar sesión: ${e.toString()}', MessageSeverity.error);
-                                  }
-                                } finally {
-                                  if (navigatorKey.currentState?.canPop() == true) navigatorKey.currentState?.pop();
-                                }
-                              },
-                              onForgotPassword: () {
-                                _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Olvidé contraseña')));
-                              },
-                              onRegister: () => setState(() => _showRegister = true),
-                            )),
+                                },
+                                onForgotPassword: () {
+                                  _scaffoldMessengerKey.currentState
+                                      ?.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Olvidé contraseña'),
+                                        ),
+                                      );
+                                },
+                                onRegister: () =>
+                                    setState(() => _showRegister = true),
+                              )),
                 ),
               ),
             ),
@@ -368,35 +470,7 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
-  void _showStyledMessage(String text, MessageSeverity severity) {
-    final color = severity == MessageSeverity.success
-        ? Colors.green[700]
-        : severity == MessageSeverity.warning
-            ? Colors.orange[800]
-            : Colors.red[700];
-
-    final icon = severity == MessageSeverity.success
-        ? Icons.check_circle
-        : severity == MessageSeverity.warning
-            ? Icons.warning_amber_rounded
-            : Icons.error_outline;
-
-    _scaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text, style: const TextStyle(color: Colors.white))),
-        ],
-      ),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 4),
-    ));
-  }
+  // _showStyledMessage removed (unused)
 }
 
 enum MessageSeverity { success, warning, error }
-

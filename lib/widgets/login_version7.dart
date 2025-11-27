@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -21,7 +20,7 @@ class LoginVersion7 extends StatefulWidget {
   final String? initialEmail;
 
   const LoginVersion7({
-    super.key,
+    Key? key,
     this.logo,
     required this.appName,
     this.isDarkMode,
@@ -30,7 +29,7 @@ class LoginVersion7 extends StatefulWidget {
     this.onForgotPassword,
     this.onRegister,
     this.initialEmail,
-  });
+  }) : super(key: key);
 
   @override
   State<LoginVersion7> createState() => _LoginVersion7State();
@@ -81,38 +80,28 @@ class _LoginVersion7State extends State<LoginVersion7> {
     final begin = Alignment.topLeft;
     final end = Alignment.bottomRight;
 
-    final lightGradient = LinearGradient(
-      begin: begin,
-      end: end,
-      colors: [AppColors.midnightBlue, AppColors.lightBlue],
-    );
+    final lightGradient = LinearGradient(begin: begin, end: end, colors: [AppColors.midnightBlue, AppColors.lightBlue]);
 
-    // Derive a muted maroon (less saturated, slightly lighter) for dark mode
-    // We avoid shifting hue toward green/teal — keep the maroon hue but soften it.
-    final h = HSLColor.fromColor(AppColors.maroon);
-    final derivedMutedMaroon = h
-        .withSaturation((h.saturation * 0.48).clamp(0.0, 1.0))
-        .withLightness((h.lightness * 1.02).clamp(0.0, 1.0))
-        .toColor()
-        .withAlpha((0.94 * 255).round());
+  // Derive a muted maroon (less saturated, slightly lighter) for dark mode
+  // We avoid shifting hue toward green/teal — keep the maroon hue but soften it.
+  final h = HSLColor.fromColor(AppColors.maroon);
+  final derivedMutedMaroon = h
+    .withSaturation((h.saturation * 0.48).clamp(0.0, 1.0))
+    .withLightness((h.lightness * 1.02).clamp(0.0, 1.0))
+    .toColor()
+    .withAlpha((0.94 * 255).round());
 
-    final darkGradient = LinearGradient(
-      begin: begin,
-      end: end,
-      colors: [AppColors.midnightBlue, derivedMutedMaroon],
-    );
+  final darkGradient = LinearGradient(begin: begin, end: end, colors: [AppColors.midnightBlue, derivedMutedMaroon]);
 
     final bgGradient = isDark ? darkGradient : lightGradient;
 
     // cardColor is computed inline where used
     final logoBg = AppColors.alabaster;
     final titleColor = isDark ? AppColors.alabaster : AppColors.midnightBlue;
-    // Use alabaster for borders in dark mode (per request). Use a muted maroon for
-    // selectable accents (buttons) but not too intense.
-    final subtitleColor = isDark
-        ? AppColors.tan
-        : AppColors.alabaster.withAlpha((0.9 * 255).round());
-    final buttonColor = isDark ? derivedMutedMaroon : AppColors.midnightBlue;
+  // Use alabaster for borders in dark mode (per request). Use a muted maroon for
+  // selectable accents (buttons) but not too intense.
+  final subtitleColor = isDark ? AppColors.tan : AppColors.alabaster.withAlpha((0.9 * 255).round());
+  final buttonColor = isDark ? derivedMutedMaroon : AppColors.midnightBlue;
 
     return Scaffold(
       body: AnimatedContainer(
@@ -124,164 +113,108 @@ class _LoginVersion7State extends State<LoginVersion7> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double maxWidth = constraints.maxWidth >= 1000
-                    ? 760.0
-                    : (constraints.maxWidth >= 768
-                          ? 640.0
-                          : (constraints.maxWidth >= 430 ? 460.0 : 360.0));
+            child: LayoutBuilder(builder: (context, constraints) {
+              final double maxWidth = constraints.maxWidth >= 1000
+                  ? 760.0
+                  : (constraints.maxWidth >= 768 ? 640.0 : (constraints.maxWidth >= 430 ? 460.0 : 360.0));
 
-                return ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
-                  child: Stack(
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Header
-                          Column(
-                            children: [
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  color: logoBg,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color.fromRGBO(
-                                        0,
-                                        0,
-                                        0,
-                                        0.25,
-                                      ),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child:
-                                      widget.logo ??
-                                      Icon(
-                                        Icons.home,
-                                        size: 44,
-                                        color: isDark
-                                            ? AppColors.alabaster
-                                            : AppColors.midnightBlue,
-                                      ),
-                                ),
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: Stack(
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Header
+                        Column(
+                          children: [
+                            Container(
+                              width: 96,
+                              height: 96,
+                              decoration: BoxDecoration(
+                                color: logoBg,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.25), blurRadius: 12, offset: const Offset(0, 6)),
+                                ],
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                widget.appName,
-                                style: Theme.of(context).textTheme.headlineLarge
-                                    ?.copyWith(color: titleColor),
-                              ),
-                              const SizedBox(height: 6),
-                              // intentionally do not show display name on login
-                              Text(
-                                'Bienvenido de nuevo',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(color: subtitleColor),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 22),
-
-                          // Card with controlled blur and better padding/opacity in dark mode
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: BackdropFilter(
-                              // Slightly reduced blur to avoid washed-out text
-                              filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 450),
-                                curve: Curves.easeInOut,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 22,
-                                  vertical: 26,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppColors.midnightBlue.withAlpha(
-                                          (0.64 * 255).round(),
-                                        )
-                                      : AppColors.alabaster.withAlpha(
-                                          (0.98 * 255).round(),
-                                        ),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: isDark
-                                          ? const Color.fromRGBO(0, 0, 0, 0.36)
-                                          : const Color.fromRGBO(0, 0, 0, 0.12),
-                                      blurRadius: 18,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: _buildForm(context, isDark, buttonColor),
+                              child: Center(
+                                child: widget.logo ?? Icon(Icons.home, size: 44, color: isDark ? AppColors.alabaster : AppColors.midnightBlue),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(height: 12),
+                            Text(widget.appName, style: Theme.of(context).textTheme.headlineLarge?.copyWith(color: titleColor)),
+                            const SizedBox(height: 6),
+                            // intentionally do not show display name on login
+                            Text('Bienvenido de nuevo', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: subtitleColor)),
+                          ],
+                        ),
 
-                      // Theme toggle in the top-right corner of the constrained area
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Semantics(
-                              button: true,
-                              label: isDark
-                                  ? 'Cambiar a modo claro'
-                                  : 'Cambiar a modo oscuro',
-                              child: IconButton(
-                                onPressed: () {
-                                  widget.onToggleTheme?.call(!isDark);
+                        const SizedBox(height: 22),
+
+                        // Card with controlled blur and better padding/opacity in dark mode
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            // Slightly reduced blur to avoid washed-out text
+                            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 450),
+                              curve: Curves.easeInOut,
+                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+                                decoration: BoxDecoration(
+                                color: isDark ? AppColors.midnightBlue.withAlpha((0.64 * 255).round()) : AppColors.alabaster.withAlpha((0.98 * 255).round()),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isDark ? const Color.fromRGBO(0,0,0,0.36) : const Color.fromRGBO(0,0,0,0.12),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: _buildForm(context, isDark, buttonColor),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Theme toggle in the top-right corner of the constrained area
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Semantics(
+                            button: true,
+                            label: isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+                            child: IconButton(
+                              onPressed: () {
+                                widget.onToggleTheme?.call(!isDark);
+                              },
+                              tooltip: isDark ? 'Modo claro' : 'Modo oscuro',
+                              icon: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 350),
+                                transitionBuilder: (child, animation) {
+                                  return RotationTransition(
+                                    turns: Tween<double>(begin: 0.75, end: 1.0).animate(animation),
+                                    child: FadeTransition(opacity: animation, child: child),
+                                  );
                                 },
-                                tooltip: isDark ? 'Modo claro' : 'Modo oscuro',
-                                icon: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 350),
-                                  transitionBuilder: (child, animation) {
-                                    return RotationTransition(
-                                      turns: Tween<double>(
-                                        begin: 0.75,
-                                        end: 1.0,
-                                      ).animate(animation),
-                                      child: FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      ),
-                                    );
-                                  },
-                                  child: isDark
-                                      ? const Icon(
-                                          Icons.nights_stay,
-                                          key: ValueKey('moon'),
-                                        )
-                                      : const Icon(
-                                          Icons.wb_sunny,
-                                          key: ValueKey('sun'),
-                                        ),
-                                ),
+                                child: isDark ? const Icon(Icons.nights_stay, key: ValueKey('moon')) : const Icon(Icons.wb_sunny, key: ValueKey('sun')),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
       ),
@@ -309,46 +242,19 @@ class _LoginVersion7State extends State<LoginVersion7> {
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     onFieldSubmitted: (_) => _passFocus.requestFocus(),
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.alabaster
-                          : AppColors.midnightBlue,
-                    ),
+                    style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue),
                     readOnly: _emailReadOnly,
                     decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        Icons.mail_outline,
-                        color: borderColor.withAlpha((0.9 * 255).round()),
-                      ),
+                      prefixIcon: Icon(Icons.mail_outline, color: borderColor.withAlpha((0.9 * 255).round())),
                       labelText: 'Email',
-                      labelStyle: TextStyle(
-                        color: isDark
-                            ? AppColors.alabaster.withAlpha((0.9 * 255).round())
-                            : AppColors.midnightBlue,
-                      ),
+                      labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.9 * 255).round()) : AppColors.midnightBlue),
                       hintText: 'correo@ejemplo.com',
-                      hintStyle: TextStyle(
-                        color: isDark
-                            ? AppColors.alabaster.withAlpha(
-                                (0.75 * 255).round(),
-                              )
-                            : AppColors.midnightBlue.withAlpha(
-                                (0.7 * 255).round(),
-                              ),
-                      ),
+                        hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.75 * 255).round()) : AppColors.midnightBlue.withAlpha((0.7 * 255).round())),
                       errorText: _emailError,
                       filled: true,
                       fillColor: Colors.transparent,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: borderColor.withAlpha((0.12 * 255).round()),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: borderColor, width: 2),
-                      ),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor, width: 2)),
                     ),
                   ),
                 ),
@@ -377,54 +283,28 @@ class _LoginVersion7State extends State<LoginVersion7> {
           hint: 'Ingrese su contraseña',
           child: SizedBox(
             height: 64,
-            child: TextFormField(
+                child: TextFormField(
               controller: _passCtrl,
               focusNode: _passFocus,
               obscureText: _obscure,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
-              style: TextStyle(
-                color: isDark ? AppColors.alabaster : AppColors.midnightBlue,
-              ),
+              style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue),
               decoration: InputDecoration(
-                prefixIcon: Icon(
-                  Icons.lock_outline,
-                  color: borderColor.withAlpha((0.9 * 255).round()),
-                ),
+                prefixIcon: Icon(Icons.lock_outline, color: borderColor.withAlpha((0.9 * 255).round())),
                 labelText: 'Contraseña',
-                labelStyle: TextStyle(
-                  color: isDark
-                      ? AppColors.alabaster.withAlpha((0.9 * 255).round())
-                      : AppColors.midnightBlue,
-                ),
+                labelStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.9 * 255).round()) : AppColors.midnightBlue),
                 hintText: '••••••••',
-                hintStyle: TextStyle(
-                  color: isDark
-                      ? AppColors.alabaster.withAlpha((0.75 * 255).round())
-                      : AppColors.midnightBlue.withAlpha((0.7 * 255).round()),
-                ),
-                errorText: _passwordError,
+                  hintStyle: TextStyle(color: isDark ? AppColors.alabaster.withAlpha((0.75 * 255).round()) : AppColors.midnightBlue.withAlpha((0.7 * 255).round())),
+                    errorText: _passwordError,
                 filled: true,
                 fillColor: Colors.transparent,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: borderColor.withAlpha((0.12 * 255).round()),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: borderColor, width: 2),
-                ),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor.withAlpha((0.12 * 255).round()))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor, width: 2)),
                 suffixIcon: IconButton(
                   onPressed: () => setState(() => _obscure = !_obscure),
-                  tooltip: _obscure
-                      ? 'Mostrar contraseña'
-                      : 'Ocultar contraseña',
-                  icon: Icon(
-                    _obscure ? Icons.visibility_off : Icons.visibility,
-                    color: borderColor.withAlpha((0.9 * 255).round()),
-                  ),
+                  tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                  icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility, color: borderColor.withAlpha((0.9 * 255).round())),
                 ),
               ),
             ),
@@ -449,30 +329,13 @@ class _LoginVersion7State extends State<LoginVersion7> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _forgotPressed
-                      ? (isDark
-                            ? buttonColor.withAlpha((0.22 * 255).round())
-                            : buttonColor.withAlpha((0.08 * 255).round()))
-                      : Colors.transparent,
+                  color: _forgotPressed ? (isDark ? buttonColor.withAlpha((0.22 * 255).round()) : buttonColor.withAlpha((0.08 * 255).round())) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: _forgotPressed
-                      ? [
-                          BoxShadow(
-                            color: buttonColor.withAlpha((0.28 * 255).round()),
-                            blurRadius: 14,
-                            spreadRadius: 1,
-                          ),
-                        ]
+                      ? [BoxShadow(color: buttonColor.withAlpha((0.28 * 255).round()), blurRadius: 14, spreadRadius: 1)]
                       : [],
                 ),
-                child: Text(
-                  '¿Olvidaste tu contraseña?',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.alabaster
-                        : AppColors.midnightBlue,
-                  ),
-                ),
+                child: Text('¿Olvidaste tu contraseña?', style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue)),
               ),
             ),
           ),
@@ -486,21 +349,10 @@ class _LoginVersion7State extends State<LoginVersion7> {
             style: ElevatedButton.styleFrom(
               backgroundColor: buttonColor,
               foregroundColor: AppColors.alabaster,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: _submitting ? null : _submit,
-            child: _submitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Iniciar Sesión', style: TextStyle(fontSize: 18)),
+            child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Iniciar Sesión', style: TextStyle(fontSize: 18)),
           ),
         ),
 
@@ -508,10 +360,7 @@ class _LoginVersion7State extends State<LoginVersion7> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '¿Aún no tienes cuenta?',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text('¿Aún no tienes cuenta?', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(width: 6),
             Semantics(
               button: true,
@@ -526,37 +375,13 @@ class _LoginVersion7State extends State<LoginVersion7> {
                 onTapCancel: () => setState(() => _registerPressed = false),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _registerPressed
-                        ? (isDark
-                              ? buttonColor.withAlpha((0.22 * 255).round())
-                              : buttonColor.withAlpha((0.08 * 255).round()))
-                        : Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                    color: _registerPressed ? (isDark ? buttonColor.withAlpha((0.22 * 255).round()) : buttonColor.withAlpha((0.08 * 255).round())) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: _registerPressed
-                        ? [
-                            BoxShadow(
-                              color: buttonColor.withAlpha(
-                                (0.28 * 255).round(),
-                              ),
-                              blurRadius: 14,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : [],
+                    boxShadow: _registerPressed ? [BoxShadow(color: buttonColor.withAlpha((0.28 * 255).round()), blurRadius: 14, spreadRadius: 1)] : [],
                   ),
-                  child: Text(
-                    'Registrarse',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.alabaster
-                          : AppColors.midnightBlue,
-                    ),
-                  ),
+                  child: Text('Registrarse', style: TextStyle(color: isDark ? AppColors.alabaster : AppColors.midnightBlue)),
                 ),
               ),
             ),
@@ -578,55 +403,21 @@ class _LoginVersion7State extends State<LoginVersion7> {
     final pass = _passCtrl.text;
 
     // Await the parent's async login; let it throw ApiException on failure
-    widget
-        .onLogin(email, pass)
-        .then((_) {
-          if (!mounted) return;
-          setState(() => _submitting = false);
-        })
-        .catchError((err) {
-          if (!mounted) return;
-          String? serverMsg;
-          if (err is Exception) {
-            try {
-              // ApiException body may be JSON
-              final body = (err as dynamic).body;
-              if (body != null) {
-                final parsed = jsonDecode(body);
-                if (parsed is Map && parsed['message'] != null)
-                  serverMsg = parsed['message'].toString();
-              }
-            } catch (_) {
-              // ignore parse errors
-            }
-          }
-
-          // Map server message to field errors when possible
-          if (serverMsg != null) {
-            final lower = serverMsg.toLowerCase();
-            if (lower.contains('usuario') || lower.contains('no encontrado')) {
-              setState(() {
-                _emailError = serverMsg;
-                _passwordError = null;
-                _submitting = false;
-              });
-              return;
-            }
-            if (lower.contains('contraseña') || lower.contains('password')) {
-              setState(() {
-                _passwordError = serverMsg;
-                _emailError = null;
-                _submitting = false;
-              });
-              return;
-            }
-          }
-
-          // fallback: show generic error
-          setState(() => _submitting = false);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(err.toString())));
-        });
+    widget.onLogin(email, pass).then((_) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+    }).catchError((err) {
+      if (!mounted) return;
+      // Política solicitada: no mostrar textos largos. Solo:
+      // - "Contraseña incorrecta" para cualquier error de credenciales u otro
+      // - Error de red mínimo si es claramente un problema de conexión
+      final errStr = err.toString().toLowerCase();
+      final isNetwork = errStr.contains('connection') || errStr.contains('timeout');
+      setState(() {
+        _submitting = false;
+        _emailError = null;
+        _passwordError = isNetwork ? 'Error de red. Intenta nuevamente.' : 'Contraseña incorrecta';
+      });
+    });
   }
 }

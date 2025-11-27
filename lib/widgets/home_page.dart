@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
-import '../presentation/providers/connectivity_provider.dart';
 import '../presentation/providers/user_provider.dart';
 // (no duplicate dart:convert import)
 
@@ -19,6 +18,8 @@ import 'preferences.dart';
 import 'leading_icon.dart';
 import 'styled_card.dart';
 import 'mis_residencias.dart';
+import 'robust_image.dart';
+import 'inquilino_principal.dart';
 
 // Top-level helper for compute() to decode base64 into bytes off the UI thread.
 Uint8List _decodeBase64ToBytes(String b64) => base64Decode(b64);
@@ -76,7 +77,7 @@ class HomePage extends StatefulWidget {
 /// Lightweight deferred loader for `ExploreMap`.
 /// Shows a small placeholder for `delay` then replaces with the real map.
 class _DeferredExplore extends StatefulWidget {
-  const _DeferredExplore();
+  const _DeferredExplore({Key? key}) : super(key: key);
 
   @override
   State<_DeferredExplore> createState() => _DeferredExploreState();
@@ -88,7 +89,7 @@ class _DeferredExploreState extends State<_DeferredExplore> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       setState(() => _showMap = true);
     });
@@ -134,7 +135,9 @@ class _HomePageState extends State<HomePage> {
             child: MisResidencias(),
           );
         case 2:
-          return _page('Principal', Icons.home);
+          return const InquilinoPrincipal(
+            role: 'propietario',
+          ); // Vista principal del propietario
         case 3:
           return _page('Contratos', Icons.description);
         case 4:
@@ -162,7 +165,9 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return _page('Alquiler', Icons.key);
       case 2:
-        return _page('Principal', Icons.home);
+        return const InquilinoPrincipal(
+          role: 'inquilino',
+        ); // Nueva vista principal del inquilino
       case 3:
         return _page('Favoritos', Icons.favorite);
       case 4:
@@ -343,10 +348,21 @@ class _HomePageState extends State<HomePage> {
             'username',
             'email',
           ]);
-    final roleCandidate = pickString(['rol', 'role', 'tipo']);
-    final role = roleCandidate.isNotEmpty ? roleCandidate : widget.role;
+    final _roleCandidate = pickString(['rol', 'role', 'tipo']);
+    final role = _roleCandidate.isNotEmpty ? _roleCandidate : widget.role;
 
     final email = pickString(['email', 'correo', 'mail']);
+    // If backend provides an empty value for email verification, treat as not verified
+    final emailVerificadoRaw = pickString([
+      'email_verificado',
+      'emailVerificado',
+      'email_confirmado',
+      'emailConfirmado',
+    ]);
+    final isEmailVerified =
+        emailVerificadoRaw.trim().isNotEmpty &&
+        emailVerificadoRaw.toLowerCase() != 'false' &&
+        emailVerificadoRaw.toLowerCase() != '0';
     final telefono = pickString([
       'telefono',
       'phone',
@@ -372,330 +388,371 @@ class _HomePageState extends State<HomePage> {
 
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.maroon,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                // Avatar (remote if available) with border
-                // Avatar (remote if available) with border
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 2),
-                  ),
-                  child: ClipOval(
-                    child: fotoUrl.isNotEmpty
-                        ? (fotoUrl.startsWith('data:')
-                              ? FutureBuilder<Uint8List>(
-                                  future: compute(
-                                    _decodeBase64ToBytes,
-                                    fotoUrl.split(',').last,
-                                  ),
-                                  builder: (context, snap) {
-                                    if (snap.connectionState ==
-                                            ConnectionState.done &&
-                                        snap.hasData) {
-                                      return Image.memory(
-                                        snap.data!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            _avatarFallback(displayName),
+    return RefreshIndicator(
+      onRefresh: () async {
+        try {
+          await auth.refreshProfile();
+        } catch (_) {}
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.maroon,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  // Avatar (remote if available) with border
+                  // Avatar (remote if available) with border
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 2),
+                    ),
+                    child: ClipOval(
+                      child: fotoUrl.isNotEmpty
+                          ? (fotoUrl.startsWith('data:')
+                                ? FutureBuilder<Uint8List>(
+                                    future: compute(
+                                      _decodeBase64ToBytes,
+                                      fotoUrl.split(',').last,
+                                    ),
+                                    builder: (context, snap) {
+                                      if (snap.connectionState ==
+                                              ConnectionState.done &&
+                                          snap.hasData) {
+                                        return Image.memory(
+                                          snap.data!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              _avatarFallback(displayName),
+                                        );
+                                      }
+                                      if (snap.hasError)
+                                        return _avatarFallback(displayName);
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white70,
+                                        ),
                                       );
-                                    }
-                                    if (snap.hasError)
-                                      return _avatarFallback(displayName);
-                                    return Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white70,
-                                      ),
-                                    );
-                                  },
-                                )
-                              : Image.network(
-                                  fotoUrl,
-                                  fit: BoxFit.cover,
-                                  // Small avatar — limit decoded size to reduce memory usage.
-                                  cacheWidth:
-                                      (72 *
-                                              MediaQuery.of(
-                                                context,
-                                              ).devicePixelRatio)
-                                          .round(),
-                                  errorBuilder: (_, __, ___) =>
-                                      _avatarFallback(displayName),
-                                ))
-                        : _avatarFallback(displayName),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Mi Perfil',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        displayName.isNotEmpty ? displayName : 'Usuario',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Text(
-                            role,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.white70),
-                          ),
-                          const SizedBox(width: 8),
-                          if (estado.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: estado.toLowerCase() == 'activo'
-                                    ? Colors.green.shade700
-                                    : Colors.grey.shade600,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                estado,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (createdAt.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'Miembro desde ${_formatDate(context, createdAt)}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Colors.white70),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Contact card
-          StyledCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Información de contacto',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _contactRow(Icons.email, 'Email', email),
-                const SizedBox(height: 8),
-                _contactRow(Icons.phone, 'Teléfono', telefono),
-                const SizedBox(height: 8),
-                _contactRow(Icons.location_on, 'Ubicación', ubicacion),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Action menu
-          StyledCard(
-            child: Column(
-              children: [
-                _menuTile(
-                  Icons.person,
-                  'Datos personales',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfileEdit()),
-                  ),
-                ),
-                _menuTile(
-                  Icons.lock,
-                  'Cambiar contraseña',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ChangePasswordPage(),
+                                    },
+                                  )
+                                : RobustImage(
+                                    source: fotoUrl,
+                                    fit: BoxFit.cover,
+                                    width: 72,
+                                    height: 72,
+                                  ))
+                          : _avatarFallback(displayName),
                     ),
                   ),
-                ),
-                _menuTile(
-                  Icons.tune,
-                  'Preferencias',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const PreferencesPage()),
-                  ),
-                ),
-                Divider(height: 1),
-                _menuTile(
-                  Icons.exit_to_app,
-                  'Cerrar sesión',
-                  onTap: widget.onLogout,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Stats cards
-          Row(
-            children: [
-              Expanded(
-                child: StyledCard(
-                  child: SizedBox(
-                    height: 96,
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '$contratos',
+                          'Mi Perfil',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
-                                color: isDarkTheme
-                                    ? AppColors.tan
-                                    : AppColors.maroon,
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Contratos',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StyledCard(
-                  child: SizedBox(
-                    height: 96,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '$favoritos',
-                          style: Theme.of(context).textTheme.titleLarge
+                          displayName.isNotEmpty ? displayName : 'Usuario',
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
-                                color: isDarkTheme
-                                    ? AppColors.tan
-                                    : AppColors.maroon,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Favoritos',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Additional stats row: saldo and ultima actividad
-          Row(
-            children: [
-              Expanded(
-                child: StyledCard(
-                  child: SizedBox(
-                    height: 96,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _formatCurrency(context, saldoAbonado),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: isDarkTheme
-                                    ? AppColors.tan
-                                    : AppColors.maroon,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Saldo abonado',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StyledCard(
-                  child: SizedBox(
-                    height: 96,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          ultimaActividad.isNotEmpty
-                              ? _formatDate(context, ultimaActividad)
-                              : '-',
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: isDarkTheme
-                                    ? AppColors.alabaster
-                                    : AppColors.midnightBlue,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          'Última actividad',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        Row(
+                          children: [
+                            Text(
+                              role,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.white70),
+                            ),
+                            const SizedBox(width: 8),
+                            if (estado.isNotEmpty)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: estado.toLowerCase() == 'activo'
+                                      ? Colors.green.shade700
+                                      : Colors.grey.shade600,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  estado,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
+                        if (createdAt.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Miembro desde ${_formatDate(context, createdAt)}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                        ],
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Email verification notice (only if not verified)
+            if (!isEmailVerified)
+              StyledCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Confirma tu correo',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tu email no está verificado. Hemos enviado un enlace de confirmación al correo asociado a tu cuenta. Revisa tu bandeja de entrada y spam.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          if (email.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Correo: ' + email,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: Colors.black54),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ],
+
+            // Contact card
+            StyledCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Información de contacto',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _contactRow(Icons.email, 'Email', email),
+                  const SizedBox(height: 8),
+                  _contactRow(Icons.phone, 'Teléfono', telefono),
+                  const SizedBox(height: 8),
+                  _contactRow(Icons.location_on, 'Ubicación', ubicacion),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Action menu
+            StyledCard(
+              child: Column(
+                children: [
+                  _menuTile(
+                    Icons.person,
+                    'Datos personales',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileEdit()),
+                    ),
+                  ),
+                  _menuTile(
+                    Icons.lock,
+                    'Cambiar contraseña',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordPage(),
+                      ),
+                    ),
+                  ),
+                  _menuTile(
+                    Icons.tune,
+                    'Preferencias',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PreferencesPage(),
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1),
+                  _menuTile(
+                    Icons.exit_to_app,
+                    'Cerrar sesión',
+                    onTap: widget.onLogout,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Stats cards
+            Row(
+              children: [
+                Expanded(
+                  child: StyledCard(
+                    child: SizedBox(
+                      height: 96,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$contratos',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: isDarkTheme
+                                      ? AppColors.tan
+                                      : AppColors.maroon,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Contratos',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StyledCard(
+                    child: SizedBox(
+                      height: 96,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$favoritos',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: isDarkTheme
+                                      ? AppColors.tan
+                                      : AppColors.maroon,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Favoritos',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Additional stats row: saldo and ultima actividad
+            Row(
+              children: [
+                Expanded(
+                  child: StyledCard(
+                    child: SizedBox(
+                      height: 96,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _formatCurrency(context, saldoAbonado),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: isDarkTheme
+                                      ? AppColors.tan
+                                      : AppColors.maroon,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Saldo abonado',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StyledCard(
+                    child: SizedBox(
+                      height: 96,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            ultimaActividad.isNotEmpty
+                                ? _formatDate(context, ultimaActividad)
+                                : '-',
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: isDarkTheme
+                                      ? AppColors.alabaster
+                                      : AppColors.midnightBlue,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Última actividad',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -750,44 +807,39 @@ class _HomePageState extends State<HomePage> {
 
     final items = _buildItems(widget.role);
 
-    // Determine which index corresponds to the MisResidencias page (if present)
+    // Determine which index corresponds to the MisResidencias and Perfil pages
     int residenciasIndex = -1;
-    if (widget.role == 'propietario') residenciasIndex = 1;
+    int profileIndex = -1;
+    if (widget.role == 'propietario') {
+      residenciasIndex = 1;
+      profileIndex = 4;
+    } else if (widget.role == 'admin') {
+      profileIndex = 3;
+    } else {
+      profileIndex = 4;
+    }
 
     // Determine page count based on role
     final int pageCount = (widget.role == 'admin') ? 4 : 5;
 
-    final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
+    // final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
     return Scaffold(
-      body: Column(
-        children: [
-          if (!isOnline)
-            Container(
-              width: double.infinity,
-              color: Colors.red.shade700,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: const Center(
-                child: Text(
-                  'Sin conexión a internet',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: pageCount,
-              physics: const BouncingScrollPhysics(),
-              onPageChanged: (i) {
-                setState(() => _index = i);
-              },
-              itemBuilder: (context, i) => _pageForIndex(i, widget.role),
-            ),
-          ),
-        ],
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: pageCount,
+        // Allow user to swipe between pages for natural navigation.
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (i) {
+          setState(() => _index = i);
+          // If user swiped to Perfil, refresh profile data
+          if (i == profileIndex) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            try {
+              auth.refreshProfile();
+            } catch (_) {}
+          }
+        },
+        itemBuilder: (context, i) => _pageForIndex(i, widget.role),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: items,
@@ -803,6 +855,15 @@ class _HomePageState extends State<HomePage> {
             curve: Curves.easeInOut,
           );
           setState(() => _index = i);
+
+          // If the user tapped the 'Explorar' icon (index 0), request ExploreMap to reload markers
+          if (i == 0) {
+            try {
+              ExploreMap.requestReload();
+            } catch (_) {}
+          }
+
+          // If the user tapped the 'Residencias' icon, trigger a reload via AuthProvider
           if (i == residenciasIndex) {
             final auth = Provider.of<AuthProvider>(context, listen: false);
             try {
@@ -810,6 +871,18 @@ class _HomePageState extends State<HomePage> {
             } catch (e) {
               debugPrint(
                 '[HomePage] error reloading residencias via provider: $e',
+              );
+            }
+          }
+
+          // If the user tapped the 'Perfil' icon, refresh profile data
+          if (i == profileIndex) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            try {
+              auth.refreshProfile();
+            } catch (e) {
+              debugPrint(
+                '[HomePage] error refreshing profile via provider: $e',
               );
             }
           }

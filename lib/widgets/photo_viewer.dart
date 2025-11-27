@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfilePhotoViewer extends StatelessWidget {
   final Uint8List? bytes;
@@ -10,7 +11,7 @@ class ProfilePhotoViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = bytes != null ? MemoryImage(bytes!) : NetworkImage(url!) as ImageProvider;
+    final imageProvider = bytes != null ? MemoryImage(bytes!) : CachedNetworkImageProvider(url!) as ImageProvider;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
