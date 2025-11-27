@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 
 class UserListScreen extends StatelessWidget {
+  const UserListScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
@@ -17,7 +19,9 @@ class UserListScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final user = userProvider.users[index];
                 return ListTile(
-                  title: Text(user['displayName'] ?? user['nombre'] ?? 'Sin nombre'),
+                  title: Text(
+                    user['displayName'] ?? user['nombre'] ?? 'Sin nombre',
+                  ),
                   subtitle: Text(user['email'] ?? ''),
                   trailing: IconButton(
                     icon: Icon(Icons.delete),

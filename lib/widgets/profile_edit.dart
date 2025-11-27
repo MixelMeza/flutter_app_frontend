@@ -26,7 +26,8 @@ class _ProfileEditState extends State<ProfileEdit> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telefonoController = TextEditingController();
   final TextEditingController _direccionController = TextEditingController();
-  final TextEditingController _fechaNacimientoController = TextEditingController();
+  final TextEditingController _fechaNacimientoController =
+      TextEditingController();
   final TextEditingController _fotoUrlController = TextEditingController();
 
   Map<String, dynamic> _original = {};
@@ -70,21 +71,39 @@ class _ProfileEditState extends State<ProfileEdit> {
       final profile = auth.profile ?? {};
       _original = Map<String, dynamic>.from(profile);
 
-      _displayNameController.text = _pick(profile, ['displayName', 'nombre', 'user', 'username', 'email']) ?? '';
+      _displayNameController.text =
+          _pick(profile, [
+            'displayName',
+            'nombre',
+            'user',
+            'username',
+            'email',
+          ]) ??
+          '';
       _emailController.text = _pick(profile, ['email']) ?? '';
-      _telefonoController.text = _pick(profile, ['telefono', 'phone', 'telefono_celular']) ?? '';
-      _direccionController.text = _pick(profile, ['direccion', 'direccion_completa', 'address']) ?? '';
-      _fechaNacimientoController.text = _pick(profile, ['fecha_nacimiento', 'fechaNacimiento', 'birth_date']) ?? '';
-      _fotoUrlController.text = _pick(profile, ['foto_url', 'avatar', 'photo']) ?? '';
+      _telefonoController.text =
+          _pick(profile, ['telefono', 'phone', 'telefono_celular']) ?? '';
+      _direccionController.text =
+          _pick(profile, ['direccion', 'direccion_completa', 'address']) ?? '';
+      _fechaNacimientoController.text =
+          _pick(profile, [
+            'fecha_nacimiento',
+            'fechaNacimiento',
+            'birth_date',
+          ]) ??
+          '';
+      _fotoUrlController.text =
+          _pick(profile, ['foto_url', 'avatar', 'photo']) ?? '';
       // remember original foto value so we can revert later
-      _originalFotoValue = _fotoUrlController.text.isNotEmpty ? _fotoUrlController.text : null;
+      _originalFotoValue = _fotoUrlController.text.isNotEmpty
+          ? _fotoUrlController.text
+          : null;
       // If the stored foto is a data-uri, pre-fill _croppedBytes so preview
       // shows exactly how the profile photo will look while editing.
       try {
         final fromUri = _bytesFromDataUri(_fotoUrlController.text);
         if (fromUri != null) _croppedBytes = fromUri;
       } catch (_) {}
-
 
       setState(() {});
     });
@@ -116,7 +135,10 @@ class _ProfileEditState extends State<ProfileEdit> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     try {
       final picker = ImagePicker();
-      final XFile? picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+      );
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       // Open the pure-Dart cropper page to allow the user to position/zoom
@@ -137,19 +159,40 @@ class _ProfileEditState extends State<ProfileEdit> {
       try {
         final mergedLocal = Map<String, dynamic>.from(_original);
         mergedLocal['foto_url'] = dataUri;
-        debugPrint('[ProfileEdit] About to setLocalProfile, bytes=${result.length}');
+        debugPrint(
+          '[ProfileEdit] About to setLocalProfile, bytes=${result.length}',
+        );
         await auth.setLocalProfile(mergedLocal);
         debugPrint('[ProfileEdit] setLocalProfile completed');
-        messenger.showSnackBar(SnackBar(content: Text('Vista previa actualizada (${result.length} bytes)'), backgroundColor: Colors.green[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Vista previa actualizada (${result.length} bytes)'),
+            backgroundColor: Colors.green[700],
+          ),
+        );
       } catch (e, st) {
         debugPrint('[ProfileEdit] setLocalProfile error: $e');
         debugPrint(st.toString());
-        messenger.showSnackBar(SnackBar(content: Text('No se pudo actualizar la vista previa: ${e.toString()}'), backgroundColor: Colors.red[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'No se pudo actualizar la vista previa: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red[700],
+          ),
+        );
       }
     } catch (e) {
       debugPrint('[ProfileEdit] pickAndCrop error: $e');
       try {
-        messenger.showSnackBar(SnackBar(content: Text('Error al seleccionar/recortar imagen: ${e.toString()}'), backgroundColor: Colors.red[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al seleccionar/recortar imagen: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red[700],
+          ),
+        );
       } catch (_) {}
     } finally {
       if (mounted) setState(() => _isPicking = false);
@@ -169,10 +212,16 @@ class _ProfileEditState extends State<ProfileEdit> {
       final scale = maxDimension / (width > height ? width : height);
       final targetW = (width * scale).round();
       final targetH = (height * scale).round();
-      final codec2 = await ui.instantiateImageCodec(bytes, targetWidth: targetW, targetHeight: targetH);
+      final codec2 = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: targetW,
+        targetHeight: targetH,
+      );
       final frame2 = await codec2.getNextFrame();
       final resizedImage = frame2.image;
-      final byteData = await resizedImage.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await resizedImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       if (byteData == null) return bytes;
       return byteData.buffer.asUint8List();
     } catch (e) {
@@ -184,19 +233,25 @@ class _ProfileEditState extends State<ProfileEdit> {
   void _showMessage(String text, {bool success = true}) {
     if (!mounted) return;
     final color = success ? Colors.green[700] : Colors.red[700];
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
   }
 
   Future<void> _onSave() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
+    final isOnline = Provider.of<ConnectivityProvider>(
+      context,
+      listen: false,
+    ).isOnline;
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
     final Map<String, dynamic> updates = {};
 
     void maybeSet(String key, String value) {
-      final orig = (_original[key] ?? _original[_mapAltKey(key)])?.toString() ?? '';
+      final orig =
+          (_original[key] ?? _original[_mapAltKey(key)])?.toString() ?? '';
       final trimmed = value.trim();
       if (trimmed != orig) updates[key] = trimmed;
     }
@@ -217,9 +272,11 @@ class _ProfileEditState extends State<ProfileEdit> {
     try {
       // Si no hay internet, guardar solo localmente
       if (!isOnline) {
-        final mergedLocal = Map<String, dynamic>.from(_original)..addAll(updates);
+        final mergedLocal = Map<String, dynamic>.from(_original)
+          ..addAll(updates);
         if (_croppedBytes != null) {
-          final dataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
+          final dataUri =
+              'data:image/png;base64,${base64Encode(_croppedBytes!)}';
           mergedLocal['foto_url'] = dataUri;
         }
         // Mark this local profile as pending sync so ConnectivityProvider can detect it
@@ -227,7 +284,14 @@ class _ProfileEditState extends State<ProfileEdit> {
         mergedLocal['pendingAt'] = DateTime.now().toIso8601String();
         await auth.setLocalProfile(mergedLocal);
         if (!mounted) return;
-        messenger.showSnackBar(SnackBar(content: Text('Sin conexión: cambios guardados localmente (se sincronizarán cuando vuelvas a estar online)'), backgroundColor: Colors.orange[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sin conexión: cambios guardados localmente (se sincronizarán cuando vuelvas a estar online)',
+            ),
+            backgroundColor: Colors.orange[700],
+          ),
+        );
         navigator.pop(mergedLocal);
         return;
       }
@@ -239,12 +303,18 @@ class _ProfileEditState extends State<ProfileEdit> {
         mergedLocal['foto_url'] = dataUri;
         await auth.setLocalProfile(mergedLocal);
         if (!mounted) return;
-        messenger.showSnackBar(SnackBar(content: Text('Foto actualizada localmente'), backgroundColor: Colors.green[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Foto actualizada localmente'),
+            backgroundColor: Colors.green[700],
+          ),
+        );
         navigator.pop(mergedLocal);
         return;
       }
       Map<String, dynamic> payload = Map<String, dynamic>.from(updates);
-      Map<String, dynamic> merged = Map<String, dynamic>.from(_original)..addAll(updates);
+      Map<String, dynamic> merged = Map<String, dynamic>.from(_original)
+        ..addAll(updates);
       String? localDataUri;
       if (_croppedBytes != null) {
         localDataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
@@ -253,28 +323,52 @@ class _ProfileEditState extends State<ProfileEdit> {
       try {
         final result = await auth.updateProfile(payload);
         if (localDataUri != null) {
-          final mergedLocal = Map<String, dynamic>.from(result)..addAll({'foto_url': localDataUri});
+          final mergedLocal = Map<String, dynamic>.from(result)
+            ..addAll({'foto_url': localDataUri});
           await auth.setLocalProfile(mergedLocal);
           if (!mounted) return;
-          messenger.showSnackBar(SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green[700]));
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Perfil actualizado correctamente'),
+              backgroundColor: Colors.green[700],
+            ),
+          );
           navigator.pop(mergedLocal);
           return;
         }
         if (!mounted) return;
-        messenger.showSnackBar(SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green[700]));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Perfil actualizado correctamente'),
+            backgroundColor: Colors.green[700],
+          ),
+        );
         navigator.pop(result);
         return;
       } catch (e) {
         debugPrint('[ProfileEdit] updateProfile failed: $e');
-        if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red[700]));
+        if (mounted)
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Error al actualizar: ${e.toString()}'),
+              backgroundColor: Colors.red[700],
+            ),
+          );
         return;
       }
     } catch (e) {
-      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red[700]));
+      if (mounted)
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar: ${e.toString()}'),
+            backgroundColor: Colors.red[700],
+          ),
+        );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
   // helper to map canonical key to common alternates used in profile
   String _mapAltKey(String key) {
     switch (key) {
@@ -301,8 +395,14 @@ class _ProfileEditState extends State<ProfileEdit> {
         actions: [
           TextButton(
             onPressed: _loading ? null : _onSave,
-            child: _loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Guardar', style: TextStyle(color: Colors.white)),
-          )
+            child: _loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Guardar', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
       body: Form(
@@ -314,9 +414,13 @@ class _ProfileEditState extends State<ProfileEdit> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 28),
               decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF4A90E2), Color(0xFF6FB1FC)]),
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppTheme.kBorderRadius)),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4A90E2), Color(0xFF6FB1FC)],
                 ),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(AppTheme.kBorderRadius),
+                ),
+              ),
               child: Column(
                 children: [
                   Stack(
@@ -341,8 +445,24 @@ class _ProfileEditState extends State<ProfileEdit> {
                           child: GestureDetector(
                             onTap: _isPicking ? null : _pickAndCrop,
                             child: _isPicking
-                              ? const SizedBox(width: 40, height: 40, child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))))
-                              : LeadingIcon(Icons.photo_camera, size: 40.0, backgroundColor: Colors.white),
+                                ? const SizedBox(
+                                    width: 40,
+                                    height: 40,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : LeadingIcon(
+                                    Icons.photo_camera,
+                                    size: 40.0,
+                                    backgroundColor: Colors.white,
+                                  ),
                           ),
                         ),
                       ),
@@ -353,19 +473,31 @@ class _ProfileEditState extends State<ProfileEdit> {
                           bottom: 0,
                           child: GestureDetector(
                             onTap: _revertPhoto,
-                            child: LeadingIcon(Icons.restore, size: 34.0, backgroundColor: Colors.white),
+                            child: LeadingIcon(
+                              Icons.restore,
+                              size: 34.0,
+                              backgroundColor: Colors.white,
+                            ),
                           ),
-                        )
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _displayNameController.text.isNotEmpty ? _displayNameController.text : 'Tu nombre',
-                    style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.w600),
+                    _displayNameController.text.isNotEmpty
+                        ? _displayNameController.text
+                        : 'Tu nombre',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _emailController.text.isNotEmpty ? _emailController.text : '',
+                    _emailController.text.isNotEmpty
+                        ? _emailController.text
+                        : '',
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ],
@@ -382,35 +514,53 @@ class _ProfileEditState extends State<ProfileEdit> {
                   children: [
                     TextFormField(
                       controller: _displayNameController,
-                      decoration: const InputDecoration(labelText: 'Nombre para mostrar', prefixIcon: Icon(Icons.person)),
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre para mostrar',
+                        prefixIcon: Icon(Icons.person),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(labelText: 'Correo electrónico', prefixIcon: Icon(Icons.email)),
+                      decoration: const InputDecoration(
+                        labelText: 'Correo electrónico',
+                        prefixIcon: Icon(Icons.email),
+                      ),
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _telefonoController,
-                      decoration: const InputDecoration(labelText: 'Teléfono', prefixIcon: Icon(Icons.phone)),
+                      decoration: const InputDecoration(
+                        labelText: 'Teléfono',
+                        prefixIcon: Icon(Icons.phone),
+                      ),
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _direccionController,
-                      decoration: const InputDecoration(labelText: 'Dirección', prefixIcon: Icon(Icons.location_on)),
+                      decoration: const InputDecoration(
+                        labelText: 'Dirección',
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _fechaNacimientoController,
-                      decoration: const InputDecoration(labelText: 'Fecha de nacimiento (YYYY-MM-DD)', prefixIcon: Icon(Icons.calendar_today)),
+                      decoration: const InputDecoration(
+                        labelText: 'Fecha de nacimiento (YYYY-MM-DD)',
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
                       keyboardType: TextInputType.datetime,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _fotoUrlController,
-                      decoration: const InputDecoration(labelText: 'URL de la foto', prefixIcon: Icon(Icons.link)),
+                      decoration: const InputDecoration(
+                        labelText: 'URL de la foto',
+                        prefixIcon: Icon(Icons.link),
+                      ),
                       keyboardType: TextInputType.url,
                     ),
                     const SizedBox(height: 18),
@@ -419,8 +569,15 @@ class _ProfileEditState extends State<ProfileEdit> {
                       child: ElevatedButton.icon(
                         onPressed: _loading ? null : _onSave,
                         icon: const Icon(Icons.save),
-                        label: const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Guardar cambios')),
-                        style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Text('Guardar cambios'),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -472,16 +629,42 @@ class _ProfileEditState extends State<ProfileEdit> {
         fit: BoxFit.cover,
         errorBuilder: (ctx, error, stack) {
           debugPrint('[ProfileEdit] Image.memory error: $error');
-          return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
+          return Container(
+            color: Theme.of(context).cardColor,
+            child: Center(
+              child: Icon(
+                Icons.person,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              ),
+            ),
+          );
         },
       );
     }
     final txt = _fotoUrlController.text.trim();
     final fromUri = _bytesFromDataUri(txt);
-    if (fromUri != null) return Image.memory(fromUri, width: 104, height: 104, fit: BoxFit.cover, errorBuilder: (ctx, error, stack) {
-      debugPrint('[ProfileEdit] Image.memory(fromUri) error: $error');
-      return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
-    });
+    if (fromUri != null) {
+      return Image.memory(
+        fromUri,
+        width: 104,
+        height: 104,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, error, stack) {
+          debugPrint('[ProfileEdit] Image.memory(fromUri) error: $error');
+          return Container(
+            color: Theme.of(context).cardColor,
+            child: Center(
+              child: Icon(
+                Icons.person,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              ),
+            ),
+          );
+        },
+      );
+    }
     // If it's a remote URL, show network image preview so the user sees
     // how the foto will appear before editing.
     if (txt.startsWith('http://') || txt.startsWith('https://')) {
@@ -494,15 +677,29 @@ class _ProfileEditState extends State<ProfileEdit> {
         cacheWidth: (104 * MediaQuery.of(context).devicePixelRatio).round(),
         errorBuilder: (ctx, error, stack) {
           debugPrint('[ProfileEdit] Image.network error: $error');
-          return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
+          return Container(
+            color: Theme.of(context).cardColor,
+            child: Center(
+              child: Icon(
+                Icons.person,
+                size: 48,
+                color: Theme.of(context).iconTheme.color,
+              ),
+            ),
+          );
         },
       );
     }
     // fallback placeholder
     return Container(
       color: Theme.of(context).cardColor,
-      child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)),
+      child: Center(
+        child: Icon(
+          Icons.person,
+          size: 48,
+          color: Theme.of(context).iconTheme.color,
+        ),
+      ),
     );
   }
 }
-

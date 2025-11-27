@@ -7,7 +7,12 @@ class StyledCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
 
-  const StyledCard({Key? key, required this.child, this.padding = const EdgeInsets.all(16), this.margin = const EdgeInsets.symmetric(vertical: 8, horizontal: 12)}) : super(key: key);
+  const StyledCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.margin = const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+  });
 
   @override
   Widget build(BuildContext context) {

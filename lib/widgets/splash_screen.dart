@@ -12,12 +12,12 @@ class SplashScreen extends StatefulWidget {
   final VoidCallback? onFinish;
 
   const SplashScreen({
-    Key? key,
+    super.key,
     this.logoAssetPath = 'assets/logo.png',
     this.appName = 'LivUp',
     this.duration = const Duration(milliseconds: 1400),
     this.onFinish,
-  }) : super(key: key);
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -37,9 +37,10 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 900),
     );
     _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scale = Tween<double>(begin: 0.88, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
-    );
+    _scale = Tween<double>(
+      begin: 0.88,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
 
     _ctrl.forward();
 
@@ -57,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-  return Container(
+    return Container(
       color: Colors.white,
       child: Center(
         child: FadeTransition(
@@ -94,10 +95,10 @@ class _SplashScreenState extends State<SplashScreen>
                 Text(
                   widget.appName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppColors.midnightBlue,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6,
-                      ),
+                    color: AppColors.midnightBlue,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ],
             ),

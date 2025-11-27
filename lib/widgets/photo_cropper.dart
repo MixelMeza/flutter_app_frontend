@@ -10,7 +10,7 @@ import 'dart:ui' as ui;
 class PhotoCropperPage extends StatefulWidget {
   final Uint8List imageBytes;
 
-  const PhotoCropperPage({Key? key, required this.imageBytes}) : super(key: key);
+  const PhotoCropperPage({super.key, required this.imageBytes});
 
   @override
   State<PhotoCropperPage> createState() => _PhotoCropperPageState();
@@ -55,7 +55,8 @@ class _PhotoCropperPageState extends State<PhotoCropperPage> {
       // safety timeout to avoid infinite spinner if crop never returns
       final timer = Timer(const Duration(seconds: 8), () {
         try {
-          if (_cropCompleter != null && !_cropCompleter!.isCompleted) _cropCompleter!.completeError('crop timeout');
+          if (_cropCompleter != null && !_cropCompleter!.isCompleted)
+            _cropCompleter!.completeError('crop timeout');
         } catch (_) {}
       });
 
@@ -78,9 +79,7 @@ class _PhotoCropperPageState extends State<PhotoCropperPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ajustar foto'),
-      ),
+      appBar: AppBar(title: const Text('Ajustar foto')),
       body: SafeArea(
         child: Stack(
           children: [
@@ -88,109 +87,147 @@ class _PhotoCropperPageState extends State<PhotoCropperPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  if (_origW != null && _origH != null) Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Text('Tamaño original: ${_origW} x ${_origH}'),
-                  ),
+                  if (_origW != null && _origH != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text('Tamaño original: $_origW x $_origH'),
+                    ),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: SizedBox(width: 140, height: 140, child: Image.memory(widget.imageBytes, fit: BoxFit.contain)),
+                    child: SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: Image.memory(
+                        widget.imageBytes,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                   Expanded(
-                    child: Builder(builder: (ctx) {
-                try {
-                  return Crop(
-                    controller: _controller,
-                    image: widget.imageBytes,
-                    onCropped: (croppedData) {
-                      if (_cropCompleter == null) return;
-                      try {
-                        final dynamic d = croppedData;
-                        Uint8List? bytes;
-
-                        // direct Uint8List
-                        if (d is Uint8List) bytes = d;
-
-                        // List<int>
-                        if (bytes == null && d is List<int>) bytes = Uint8List.fromList(d);
-
-                        // common property names
-                        if (bytes == null) {
-                          try {
-                            final maybe = d.bytes;
-                            if (maybe is Uint8List) bytes = maybe;
-                            else if (maybe is List<int>) bytes = Uint8List.fromList(maybe);
-                          } catch (_) {}
-                        }
-                        if (bytes == null) {
-                          try {
-                            final maybe = d.data;
-                            if (maybe is Uint8List) bytes = maybe;
-                            else if (maybe is List<int>) bytes = Uint8List.fromList(maybe);
-                          } catch (_) {}
-                        }
-                        if (bytes == null) {
-                          try {
-                            final maybe = d.image;
-                            if (maybe is Uint8List) bytes = maybe;
-                            else if (maybe is List<int>) bytes = Uint8List.fromList(maybe);
-                          } catch (_) {}
-                        }
-
-                        // ByteBuffer (view)
-                        if (bytes == null) {
-                          try {
-                            final buff = d.buffer;
-                            if (buff is ByteBuffer) {
-                              bytes = Uint8List.view(buff);
-                            }
-                          } catch (_) {}
-                        }
-
-                        // toList/toBytes methods
-                        if (bytes == null) {
-                          try {
-                            final maybe = d.toList();
-                            if (maybe is List<int>) bytes = Uint8List.fromList(maybe);
-                          } catch (_) {}
-                        }
-
-                        if (bytes != null && !_cropCompleter!.isCompleted) {
-                          _cropCompleter!.complete(bytes);
-                        } else {
-                          if (!_cropCompleter!.isCompleted) _cropCompleter!.completeError('No bytes from crop result');
-                        }
-                      } catch (err) {
+                    child: Builder(
+                      builder: (ctx) {
                         try {
-                          if (!_cropCompleter!.isCompleted) _cropCompleter!.completeError(err.toString());
-                        } catch (_) {}
-                      }
-                    },
-                    withCircleUi: true,
-                    baseColor: Colors.white,
-                    maskColor: const Color.fromRGBO(0, 0, 0, 0.4),
-                    cornerDotBuilder: (size, cornerIndex) => Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          return Crop(
+                            controller: _controller,
+                            image: widget.imageBytes,
+                            onCropped: (croppedData) {
+                              if (_cropCompleter == null) return;
+                              try {
+                                final dynamic d = croppedData;
+                                Uint8List? bytes;
+
+                                // direct Uint8List
+                                if (d is Uint8List) bytes = d;
+
+                                // List<int>
+                                if (bytes == null && d is List<int>)
+                                  bytes = Uint8List.fromList(d);
+
+                                // common property names
+                                if (bytes == null) {
+                                  try {
+                                    final maybe = d.bytes;
+                                    if (maybe is Uint8List) {
+                                      bytes = maybe;
+                                    } else if (maybe is List<int>)
+                                      bytes = Uint8List.fromList(maybe);
+                                  } catch (_) {}
+                                }
+                                if (bytes == null) {
+                                  try {
+                                    final maybe = d.data;
+                                    if (maybe is Uint8List) {
+                                      bytes = maybe;
+                                    } else if (maybe is List<int>)
+                                      bytes = Uint8List.fromList(maybe);
+                                  } catch (_) {}
+                                }
+                                if (bytes == null) {
+                                  try {
+                                    final maybe = d.image;
+                                    if (maybe is Uint8List) {
+                                      bytes = maybe;
+                                    } else if (maybe is List<int>)
+                                      bytes = Uint8List.fromList(maybe);
+                                  } catch (_) {}
+                                }
+
+                                // ByteBuffer (view)
+                                if (bytes == null) {
+                                  try {
+                                    final buff = d.buffer;
+                                    if (buff is ByteBuffer) {
+                                      bytes = Uint8List.view(buff);
+                                    }
+                                  } catch (_) {}
+                                }
+
+                                // toList/toBytes methods
+                                if (bytes == null) {
+                                  try {
+                                    final maybe = d.toList();
+                                    if (maybe is List<int>)
+                                      bytes = Uint8List.fromList(maybe);
+                                  } catch (_) {}
+                                }
+
+                                if (bytes != null &&
+                                    !_cropCompleter!.isCompleted) {
+                                  _cropCompleter!.complete(bytes);
+                                } else {
+                                  if (!_cropCompleter!.isCompleted)
+                                    _cropCompleter!.completeError(
+                                      'No bytes from crop result',
+                                    );
+                                }
+                              } catch (err) {
+                                try {
+                                  if (!_cropCompleter!.isCompleted)
+                                    _cropCompleter!.completeError(
+                                      err.toString(),
+                                    );
+                                } catch (_) {}
+                              }
+                            },
+                            withCircleUi: true,
+                            baseColor: Colors.white,
+                            maskColor: const Color.fromRGBO(0, 0, 0, 0.4),
+                            cornerDotBuilder: (size, cornerIndex) => Container(
+                              width: size,
+                              height: size,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          );
+                        } catch (err) {
+                          debugPrint('[PhotoCropper] Crop build error: $err');
+                          // Fallback: show the raw image so user can at least see it
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(
+                                  'No se pudo inicializar el recorte, vista alternativa',
+                                ),
+                              ),
+                              Image.memory(
+                                widget.imageBytes,
+                                width: 300,
+                                height: 300,
+                                fit: BoxFit.contain,
+                              ),
+                            ],
+                          );
+                        }
+                      },
                     ),
-                  );
-                } catch (err) {
-                  debugPrint('[PhotoCropper] Crop build error: $err');
-                  // Fallback: show the raw image so user can at least see it
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Padding(padding: EdgeInsets.all(8), child: Text('No se pudo inicializar el recorte, vista alternativa')),
-                      Image.memory(widget.imageBytes, width: 300, height: 300, fit: BoxFit.contain),
-                    ],
-                  );
-                }
-                    }),
                   ),
-                  ],
-                ),
+                ],
               ),
+            ),
 
             // Optional bottom controls
             Positioned(
@@ -204,11 +241,19 @@ class _PhotoCropperPageState extends State<PhotoCropperPage> {
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close),
                     label: const Text('Cancelar'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[700]),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[700],
+                    ),
                   ),
                   ElevatedButton.icon(
                     onPressed: _isLoading ? null : _onCropPressed,
-                    icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check),
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check),
                     label: const Text('Usar foto'),
                   ),
                 ],

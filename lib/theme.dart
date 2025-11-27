@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 // Avoid invoking google_fonts at runtime to prevent async asset loading
 // errors (AssetManifest.json missing). Always return the base TextTheme so
 // the app uses platform fonts and does not crash when assets cannot be read.
@@ -33,16 +34,28 @@ class AppTheme {
       primaryColor: primary,
       // Light scaffold/background should use the requested alabaster color (#EFE8DF)
       scaffoldBackgroundColor: AppColors.alabaster,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
-        brightness: Brightness.light,
-        primary: primary,
-        onPrimary: AppColors.alabaster,
-      ).copyWith(surface: AppColors.alabaster, onSurface: AppColors.midnightBlue),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: primary,
+            brightness: Brightness.light,
+            primary: primary,
+            onPrimary: AppColors.alabaster,
+          ).copyWith(
+            surface: AppColors.alabaster,
+            onSurface: AppColors.midnightBlue,
+          ),
       textTheme: _safePoppinsTextTheme(
         TextTheme(
-          headlineLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: AppColors.midnightBlue),
-          titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.midnightBlue),
+          headlineLarge: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w700,
+            color: AppColors.midnightBlue,
+          ),
+          titleLarge: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.midnightBlue,
+          ),
           bodyLarge: TextStyle(fontSize: 16, color: AppColors.midnightBlue),
           bodyMedium: TextStyle(fontSize: 14, color: AppColors.midnightBlue),
         ),
@@ -58,14 +71,22 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.alabaster,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(kBorderRadius), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kBorderRadius),
+          borderSide: BorderSide.none,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.midnightBlue,
           foregroundColor: AppColors.alabaster,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kBorderRadius)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(kBorderRadius),
+          ),
         ),
       ),
       // Bottom navigation bar: white background, medium-gray icons when inactive,
@@ -81,7 +102,11 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.alabaster,
         iconTheme: const IconThemeData(color: AppColors.midnightBlue),
-        titleTextStyle: const TextStyle(color: AppColors.midnightBlue, fontSize: 18, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(
+          color: AppColors.midnightBlue,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
         elevation: 0,
       ),
       // subtle UI timing and feedback
@@ -107,9 +132,9 @@ class AppTheme {
     // Create a slightly desaturated/softer version of primary for surfaces and buttons
     final hPrimary = HSLColor.fromColor(primary);
     final mutedPrimary = hPrimary
-      .withSaturation((hPrimary.saturation * 0.78).clamp(0.0, 1.0))
-      .withLightness((hPrimary.lightness * 1.05).clamp(0.0, 1.0))
-      .toColor();
+        .withSaturation((hPrimary.saturation * 0.78).clamp(0.0, 1.0))
+        .withLightness((hPrimary.lightness * 1.05).clamp(0.0, 1.0))
+        .toColor();
 
     // Surface color: blend a little of primary over midnight to warm the surfaces without adding new constants
     // Use explicit surface/card tones for more consistent visuals
@@ -140,10 +165,24 @@ class AppTheme {
       // Text styles tuned for dark background (use alabaster for contrast)
       textTheme: _safePoppinsTextTheme(
         const TextTheme(
-          headlineLarge: TextStyle(fontSize: 40, fontWeight: FontWeight.w700, color: AppColors.alabaster),
-          titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.alabaster),
-          bodyLarge: TextStyle(fontSize: 16, color: Color.fromRGBO(239, 232, 223, 0.94)),
-          bodyMedium: TextStyle(fontSize: 14, color: Color.fromRGBO(239, 232, 223, 0.88)),
+          headlineLarge: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w700,
+            color: AppColors.alabaster,
+          ),
+          titleLarge: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.alabaster,
+          ),
+          bodyLarge: TextStyle(
+            fontSize: 16,
+            color: Color.fromRGBO(239, 232, 223, 0.94),
+          ),
+          bodyMedium: TextStyle(
+            fontSize: 14,
+            color: Color.fromRGBO(239, 232, 223, 0.88),
+          ),
         ),
       ),
       // Cards and list tiles on dark: stronger but soft shadow so cards read from background
@@ -152,7 +191,10 @@ class AppTheme {
         textColor: const Color.fromRGBO(239, 232, 223, 0.92),
         // use actual card color so tiles appear as solid cards in dark mode
         tileColor: cardColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       // Use derived surfaces for cards and canvas
       cardColor: cardColor,
@@ -161,31 +203,46 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: inputFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(kBorderRadius), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(kBorderRadius),
+          borderSide: BorderSide.none,
+        ),
         hintStyle: const TextStyle(color: AppColors.alabaster),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: mutedPrimary,
           foregroundColor: AppColors.alabaster,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kBorderRadius)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(kBorderRadius),
+          ),
         ),
       ),
       // Default dark bottom bar (if used) — keep surface-based background and contrast icons
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: AppColors.tan, // switch to warm tan accent for dark mode
+        selectedItemColor:
+            AppColors.tan, // switch to warm tan accent for dark mode
         unselectedItemColor: const Color.fromRGBO(239, 232, 223, 0.72),
         selectedIconTheme: const IconThemeData(color: AppColors.tan),
-        unselectedIconTheme: const IconThemeData(color: Color.fromRGBO(239, 232, 223, 0.72)),
+        unselectedIconTheme: const IconThemeData(
+          color: Color.fromRGBO(239, 232, 223, 0.72),
+        ),
         elevation: 8,
         showUnselectedLabels: true,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: scaffoldBg,
         iconTheme: const IconThemeData(color: AppColors.iconOnDark),
-        titleTextStyle: const TextStyle(color: AppColors.alabaster, fontSize: 18, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(
+          color: AppColors.alabaster,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
         elevation: 0,
       ),
       // Ensure icons across the app are visible in dark mode
@@ -204,13 +261,17 @@ class AppTheme {
     // Build a copy with a solid scaffold background using midnightBlue
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.midnightBlue,
-      colorScheme: base.colorScheme.copyWith(background: AppColors.midnightBlue),
-      appBarTheme: base.appBarTheme.copyWith(backgroundColor: AppColors.midnightBlue),
+      colorScheme: base.colorScheme.copyWith(surface: AppColors.midnightBlue),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: AppColors.midnightBlue,
+      ),
     );
   }
 
   // Helper to pick ThemeData by bool
   static ThemeData themeFor({required bool isDark, Color? primaryOverride}) {
-    return isDark ? darkTheme(primaryOverride: primaryOverride) : lightTheme(primaryOverride: primaryOverride);
+    return isDark
+        ? darkTheme(primaryOverride: primaryOverride)
+        : lightTheme(primaryOverride: primaryOverride);
   }
 }
