@@ -7,6 +7,7 @@ import 'utils/preload_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/connectivity_provider.dart';
 import 'data/datasources/local_data_source.dart';
 import 'domain/usecases/login_usecase.dart';
 import 'domain/usecases/logout_usecase.dart';
@@ -18,15 +19,16 @@ import 'widgets/register_version7.dart';
 import 'services/api_service.dart' as api_service;
 import 'services/cache_service.dart';
 // connectivity import removed — not used in this file
+
 import 'widgets/home_page.dart';
+// Clave global para navegación, accesible desde otros archivos
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Limit ImageCache to reduce memory pressure on startup and during navigation.
-  // These are conservative defaults; adjust as needed.
   try {
-    PaintingBinding.instance.imageCache.maximumSize = 100; // items
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // ~50 MB
+    PaintingBinding.instance.imageCache.maximumSize = 100;
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20;
   } catch (_) {}
   await setupLocator();
 
@@ -45,14 +47,21 @@ void main() async {
   final updateProfileUseCase = locator<UpdateProfileUseCase>();
   final localDataSource = locator<LocalDataSource>();
 
-  runApp(MainApp(
-    loginUseCase: loginUseCase,
-    logoutUseCase: logoutUseCase,
-    getProfileUseCase: getProfileUseCase,
-    registerUseCase: registerUseCase,
-    updateUseCase: updateProfileUseCase,
-    localDataSource: localDataSource,
-  ));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
+      ],
+      child: MainApp(
+        loginUseCase: loginUseCase,
+        logoutUseCase: logoutUseCase,
+        getProfileUseCase: getProfileUseCase,
+        registerUseCase: registerUseCase,
+        updateUseCase: updateProfileUseCase,
+        localDataSource: localDataSource,
+      ),
+    ),
+  );
 }
 
 class MainApp extends StatefulWidget {
@@ -240,7 +249,7 @@ class _MainAppState extends State<MainApp> {
             child: MaterialApp(
               debugShowCheckedModeBanner: false,
               scaffoldMessengerKey: _scaffoldMessengerKey,
-              navigatorKey: _navigatorKey,
+              navigatorKey: navigatorKey,
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,
                 GlobalWidgetsLocalizations.delegate,
@@ -255,29 +264,28 @@ class _MainAppState extends State<MainApp> {
                 body: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
                     child: (auth.loggedIn || (_hasValidToken && (_cachedProfile != null || _cachedRole != null)))
-                        ? HomePage(
-                          key: const ValueKey('home'),
-                          email: _prefillEmail,
-                          displayName: auth.displayName ?? _displayName,
-                          profile: auth.profile ?? _cachedProfile,
-                          role: auth.profile != null ? auth.role : (_cachedRole ?? _roleFromProfile(_cachedProfile)),
-                          isDarkMode: auth.isDark,
-                          onToggleTheme: (v) async => auth.toggleTheme(v),
-                          onLogout: () async {
-                            await auth.logout();
-                            try {
-                              await widget.localDataSource.clearAuthToken();
-                            } catch (_) {}
-                            setState(() {
-                              _hasValidToken = false;
-                              _cachedProfile = null;
-                              _cachedRole = null;
-                              _prefillEmail = null;
-                              _displayName = null;
-                            });
-                            _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
-                          },
-                        )
+                        ? HomePage.withUserProvider(
+                            onLogout: () async {
+                              await auth.logout();
+                              try {
+                                await widget.localDataSource.clearAuthToken();
+                              } catch (_) {}
+                              setState(() {
+                                _hasValidToken = false;
+                                _cachedProfile = null;
+                                _cachedRole = null;
+                                _prefillEmail = null;
+                                _displayName = null;
+                              });
+                              _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
+                            },
+                            email: _prefillEmail,
+                            displayName: auth.displayName ?? _displayName,
+                            profile: auth.profile ?? _cachedProfile,
+                            role: auth.profile != null ? auth.role : (_cachedRole ?? _roleFromProfile(_cachedProfile)),
+                            isDarkMode: auth.isDark,
+                            onToggleTheme: (v) async => auth.toggleTheme(v),
+                          )
                       : (_showRegister
                           ? RegisterVersion7(
                               key: const ValueKey('register'),
@@ -364,7 +372,7 @@ class _MainAppState extends State<MainApp> {
                               onToggleTheme: (v) => auth.toggleTheme(v),
                               initialEmail: _prefillEmail,
                               onLogin: (email, pass) async {
-                                final navContext = _navigatorKey.currentContext ?? context;
+                                final navContext = navigatorKey.currentContext ?? context;
                                 showDialog(
                                   context: navContext,
                                   barrierDismissible: false,
@@ -380,7 +388,7 @@ class _MainAppState extends State<MainApp> {
                                 } catch (e) {
                                   // No mostrar ningún mensaje ni snackbar en error de login, solo el inline en el widget de login.
                                 } finally {
-                                  if (_navigatorKey.currentState?.canPop() == true) _navigatorKey.currentState?.pop();
+                                  if (navigatorKey.currentState?.canPop() == true) navigatorKey.currentState?.pop();
                                 }
                               },
                               onForgotPassword: () {

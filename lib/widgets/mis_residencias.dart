@@ -496,9 +496,15 @@ class MisResidenciasState extends State<MisResidencias> with SingleTickerProvide
         // Require login: ensure we have an auth token available
         final token = ApiService.authToken ?? '';
         if (token.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Debes iniciar sesión para agregar una residencia')));
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.showSnackBar(const SnackBar(content: Text('Debes iniciar sesión para agregar una residencia')));
           return;
         }
+
+        // Capture navigator/messenger/auth before any awaits to avoid using BuildContext after async gaps
+        final navigator = Navigator.of(context);
+        final messenger = ScaffoldMessenger.of(context);
+        final auth = Provider.of<AuthProvider>(context, listen: false);
 
         // Build clean-architecture pieces locally and open the form
         final baseUrl = 'http://10.0.2.2:8080';
@@ -506,14 +512,13 @@ class MisResidenciasState extends State<MisResidencias> with SingleTickerProvide
         final repo = ResidenciaRepositoryImpl(remote);
         final usecase = CreateResidenciaUseCase(repo);
 
-        final result = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddResidenciaForm(createUseCase: usecase, jwt: token)));
+        final result = await navigator.push(MaterialPageRoute(builder: (_) => AddResidenciaForm(createUseCase: usecase, jwt: token)));
         if (result != null && result is Map<String, dynamic>) {
           // Ask provider to refresh its list so UI stays consistent with server.
-          final auth = Provider.of<AuthProvider>(context, listen: false);
           await auth.reloadResidencias();
           if (mounted) {
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result['nombre'] ?? 'Residencia'} añadida')));
+            messenger.clearSnackBars();
+            messenger.showSnackBar(SnackBar(content: Text('${result['nombre'] ?? 'Residencia'} añadida')));
           }
         }
       },

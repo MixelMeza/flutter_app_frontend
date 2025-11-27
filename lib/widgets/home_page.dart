@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
+import '../presentation/providers/connectivity_provider.dart';
+import '../presentation/providers/user_provider.dart';
+import '../presentation/widgets/user_list_screen.dart';
 // (no duplicate dart:convert import)
 
 import 'package:intl/intl.dart';
@@ -18,6 +21,7 @@ import 'leading_icon.dart';
 import 'styled_card.dart';
 import 'mis_residencias.dart';
 import 'robust_image.dart';
+import 'inquilino_principal.dart';
 
 // Top-level helper for compute() to decode base64 into bytes off the UI thread.
 Uint8List _decodeBase64ToBytes(String b64) => base64Decode(b64);
@@ -47,13 +51,35 @@ class HomePage extends StatefulWidget {
 
   @override
   State<HomePage> createState() => _HomePageState();
+
+  static Widget withUserProvider({
+    required VoidCallback onLogout,
+    String? email,
+    String? displayName,
+    Map<String, dynamic>? profile,
+    String role = 'inquilino',
+    bool? isDarkMode,
+    ValueChanged<bool>? onToggleTheme,
+  }) {
+    return ChangeNotifierProvider(
+      create: (_) => UserProvider()..loadUsers(),
+      child: HomePage(
+        onLogout: onLogout,
+        email: email,
+        displayName: displayName,
+        profile: profile,
+        role: role,
+        isDarkMode: isDarkMode,
+        onToggleTheme: onToggleTheme,
+      ),
+    );
+  }
 }
 
 /// Lightweight deferred loader for `ExploreMap`.
 /// Shows a small placeholder for `delay` then replaces with the real map.
 class _DeferredExplore extends StatefulWidget {
-  final Duration delay;
-  const _DeferredExplore({Key? key, this.delay = const Duration(milliseconds: 450)}) : super(key: key);
+  const _DeferredExplore({Key? key}) : super(key: key);
 
   @override
   State<_DeferredExplore> createState() => _DeferredExploreState();
@@ -65,7 +91,7 @@ class _DeferredExploreState extends State<_DeferredExplore> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(widget.delay, () {
+    Future.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       setState(() => _showMap = true);
     });
@@ -73,6 +99,7 @@ class _DeferredExploreState extends State<_DeferredExplore> {
 
   @override
   Widget build(BuildContext context) {
+    final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
     if (_showMap) return const ExploreMap();
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -97,10 +124,12 @@ class _HomePageState extends State<HomePage> {
       switch (index) {
         case 0:
           return const _DeferredExplore();
-        case 1:
-          return const MisResidencias();
+          case 1:
+            // Add a top padding so the header inside `MisResidencias` appears lower
+            // without modifying the `mis_residencias.dart` file itself.
+            return const Padding(padding: EdgeInsets.only(top: 56), child: MisResidencias());
         case 2:
-          return _page('Principal', Icons.home);
+          return const InquilinoPrincipal(role: 'propietario'); // Vista principal del propietario
         case 3:
           return _page('Contratos', Icons.description);
         case 4:
@@ -126,9 +155,9 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return const _DeferredExplore();
       case 1:
-        return _page('Alquiler', Icons.key);
+        return _page('Alquiler', Icons.key); 
       case 2:
-        return _page('Principal', Icons.home);
+        return const InquilinoPrincipal(role: 'inquilino'); // Nueva vista principal del inquilino
       case 3:
         return _page('Favoritos', Icons.favorite);
       case 4:
@@ -518,6 +547,7 @@ class _HomePageState extends State<HomePage> {
     // Determine page count based on role
     final int pageCount = (widget.role == 'admin') ? 4 : 5;
 
+    final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
     return Scaffold(
       body: PageView.builder(
         controller: _pageController,
@@ -542,7 +572,6 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: unselectedColor,
         backgroundColor: bgColor,
         onTap: (i) async {
-          // animate the PageView to the selected page for a smooth transition
           _pageController.animateToPage(i, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
           setState(() => _index = i);
 
@@ -557,7 +586,6 @@ class _HomePageState extends State<HomePage> {
           if (i == residenciasIndex) {
             final auth = Provider.of<AuthProvider>(context, listen: false);
             try {
-              // start reload but don't block the animation
               auth.reloadResidencias();
             } catch (e) {
               debugPrint('[HomePage] error reloading residencias via provider: $e');
