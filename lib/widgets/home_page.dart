@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/providers/auth_provider.dart';
+import '../presentation/providers/connectivity_provider.dart';
+import '../presentation/providers/user_provider.dart';
+import '../presentation/widgets/user_list_screen.dart';
 // (no duplicate dart:convert import)
 
 import 'package:intl/intl.dart';
@@ -47,6 +50,29 @@ class HomePage extends StatefulWidget {
 
   @override
   State<HomePage> createState() => _HomePageState();
+
+  static Widget withUserProvider({
+    required VoidCallback onLogout,
+    String? email,
+    String? displayName,
+    Map<String, dynamic>? profile,
+    String role = 'inquilino',
+    bool? isDarkMode,
+    ValueChanged<bool>? onToggleTheme,
+  }) {
+    return ChangeNotifierProvider(
+      create: (_) => UserProvider()..loadUsers(),
+      child: HomePage(
+        onLogout: onLogout,
+        email: email,
+        displayName: displayName,
+        profile: profile,
+        role: role,
+        isDarkMode: isDarkMode,
+        onToggleTheme: onToggleTheme,
+      ),
+    );
+  }
 }
 
 /// Lightweight deferred loader for `ExploreMap`.
@@ -72,6 +98,7 @@ class _DeferredExploreState extends State<_DeferredExplore> {
 
   @override
   Widget build(BuildContext context) {
+    final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
     if (_showMap) return const ExploreMap();
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -96,8 +123,10 @@ class _HomePageState extends State<HomePage> {
       switch (index) {
         case 0:
           return const _DeferredExplore();
-        case 1:
-          return const MisResidencias();
+          case 1:
+            // Add a top padding so the header inside `MisResidencias` appears lower
+            // without modifying the `mis_residencias.dart` file itself.
+            return const Padding(padding: EdgeInsets.only(top: 56), child: MisResidencias());
         case 2:
           return const InquilinoPrincipal(role: 'propietario'); // Vista principal del propietario
         case 3:
@@ -268,6 +297,7 @@ class _HomePageState extends State<HomePage> {
 
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
+    final userProvider = Provider.of<UserProvider>(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
       child: Column(
@@ -483,16 +513,34 @@ class _HomePageState extends State<HomePage> {
     // Determine page count based on role
     final int pageCount = (widget.role == 'admin') ? 4 : 5;
 
+    final isOnline = Provider.of<ConnectivityProvider>(context).isOnline;
     return Scaffold(
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: pageCount,
-        // Allow user to swipe between pages for natural navigation.
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (i) {
-          setState(() => _index = i);
-        },
-        itemBuilder: (context, i) => _pageForIndex(i, widget.role),
+      body: Column(
+        children: [
+          if (!isOnline)
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade700,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: const Center(
+                child: Text(
+                  'Sin conexión a internet',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: pageCount,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (i) {
+                setState(() => _index = i);
+              },
+              itemBuilder: (context, i) => _pageForIndex(i, widget.role),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: items,
@@ -502,15 +550,11 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: unselectedColor,
         backgroundColor: bgColor,
         onTap: (i) async {
-          // animate the PageView to the selected page for a smooth transition
           _pageController.animateToPage(i, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
           setState(() => _index = i);
-
-          // If the user tapped the 'Residencias' icon, trigger a reload via AuthProvider
           if (i == residenciasIndex) {
             final auth = Provider.of<AuthProvider>(context, listen: false);
             try {
-              // start reload but don't block the animation
               auth.reloadResidencias();
             } catch (e) {
               debugPrint('[HomePage] error reloading residencias via provider: $e');

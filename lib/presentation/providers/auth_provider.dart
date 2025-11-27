@@ -6,7 +6,6 @@ import '../../domain/usecases/register_user_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../data/datasources/local_data_source.dart';
 import '../../services/cache_service.dart';
-import '../../core/network/api_client.dart';
 import '../../services/api_service.dart' as api_service;
 import '../../data/datasources/residencia_remote_data_source.dart';
 import '../../data/repositories/residencia_repository_impl.dart';
@@ -186,6 +185,50 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Register a new user via usecase and return the response map.
+  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
+    final resp = await _registerUser.call(payload);
+    try {
+      await CacheService.saveProfile(resp);
+    } catch (_) {}
+    return resp;
+  }
+
+  /// Update profile on the server and persist locally.
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updates) async {
+    final res = await _updateProfile.call(updates);
+    profile = res;
+    try {
+      await CacheService.saveProfile(res);
+    } catch (_) {}
+    displayName = res['displayName'] ?? res['nombre'] ?? res['user'] ?? res['username'] ?? res['email'];
+    final maybe = res['rol'] ?? res['role'] ?? res['tipo'] ?? res['rol_id'] ?? res['roles'];
+    if (maybe is String) {
+      final lower = maybe.toLowerCase();
+      if (lower.contains('propiet') || lower.contains('owner')) {
+        role = 'propietario';
+      } else if (lower.contains('admin')) {
+        role = 'admin';
+      } else {
+        role = 'inquilino';
+      }
+    } else if (maybe is int) {
+      if (maybe == 1) {
+        role = 'propietario';
+      } else if (maybe == 2) {
+        role = 'inquilino';
+      }
+    } else if (maybe is List && maybe.isNotEmpty) {
+      final first = maybe.first;
+      if (first is String) role = first;
+    }
+    try {
+      await _localDataSource.saveUserRole(role);
+    } catch (_) {}
+    notifyListeners();
+    return res;
+  }
+
   Future<void> toggleTheme(bool v) async {
     isDark = v;
     try {
@@ -193,33 +236,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
     notifyListeners();
   }
-
-  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
-    return await _registerUser.call(payload);
-  }
-
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updates) async {
-    try {
-      final updated = await _updateProfile.call(updates);
-      profile = updated;
-      displayName = updated['displayName'] ?? updated['nombre'] ?? updated['username'] ?? updated['email'];
-      try {
-        await CacheService.saveProfile(updated);
-      } catch (_) {}
-      notifyListeners();
-      return updated;
-    } on ApiException catch (e) {
-      if (e.statusCode == 401) {
-        // token expired or unauthorized — clear session
-        try {
-          await logout();
-        } catch (_) {}
-        throw Exception('Token expirado. Se ha cerrado la sesión.');
-      }
-      rethrow;
-    }
-  }
-
+ 
   /// Update profile locally (no server call). Persists to cache and notifies listeners.
   Future<void> setLocalProfile(Map<String, dynamic> newProfile) async {
     profile = newProfile;
