@@ -4,6 +4,7 @@ import 'dart:async' show TimeoutException;
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api.dart';
+import 'dart:async';
 
 class ApiService {
   // In-memory auth token. For persistence across app restarts, replace with
@@ -42,10 +43,20 @@ class ApiService {
   static Future<void> logout() async {
     await clearAuthToken();
   }
+
+  // Broadcast stream for global auth errors (e.g., 401 Unauthorized).
+  static final StreamController<void> _authErrorController = StreamController<void>.broadcast();
+  static Stream<void> get onAuthError => _authErrorController.stream;
+  static void notifyAuthError() {
+    try {
+      _authErrorController.add(null);
+    } catch (_) {}
+  }
   // Login: returns token string on success
-  static Future<String> login(String username, String password) async {
+  static Future<String> login(String usernameOrEmail, String password) async {
     final uri = Uri.parse('$baseUrl/api/auth/login');
-    final body = jsonEncode({'username': username, 'password': password});
+    // Enviar ambas llaves para máxima compatibilidad (algunos backends usan 'email', otros 'username').
+    final body = jsonEncode({'username': usernameOrEmail, 'email': usernameOrEmail, 'password': password});
 
     http.Response resp;
     try {
@@ -65,6 +76,11 @@ class ApiService {
         return token;
       }
       throw ApiException('Invalid login response');
+    }
+
+    // Si es login y el status es 400/401/415, no mostrar body ni detalles
+    if (uri.path.contains('/login')) {
+      throw ApiException('Contraseña incorrecta', statusCode: resp.statusCode);
     }
 
     // decode body to preserve accents/encoding
@@ -89,8 +105,8 @@ class ApiService {
       final data = jsonDecode(decoded) as Map<String, dynamic>;
       return data;
     }
-
     final errBody = utf8.decode(resp.bodyBytes);
+    if (resp.statusCode == 401) notifyAuthError();
     throw ApiException('Register failed', statusCode: resp.statusCode, body: errBody);
   }
 
@@ -111,6 +127,7 @@ class ApiService {
       return jsonDecode(decoded);
     }
     final errBody = utf8.decode(resp.bodyBytes);
+    if (resp.statusCode == 401) notifyAuthError();
     throw ApiException('GET $path failed', statusCode: resp.statusCode, body: errBody);
   }
 }
@@ -123,5 +140,11 @@ class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.body});
 
   @override
-  String toString() => 'ApiException: $message (status: $statusCode) ${body ?? ''}';
+  String toString() {
+    // Return a concise string; omit raw body to avoid huge red debug blocks in UI.
+    if (statusCode != null) {
+      return 'ApiException: $message (status: $statusCode)';
+    }
+    return 'ApiException: $message';
+  }
 }

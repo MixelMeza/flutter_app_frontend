@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -409,44 +408,16 @@ class _LoginVersion7State extends State<LoginVersion7> {
       setState(() => _submitting = false);
     }).catchError((err) {
       if (!mounted) return;
-      String? serverMsg;
-      if (err is Exception) {
-        try {
-          // ApiException body may be JSON
-          final body = (err as dynamic).body;
-          if (body != null) {
-            final parsed = jsonDecode(body);
-            if (parsed is Map && parsed['message'] != null) serverMsg = parsed['message'].toString();
-          }
-        } catch (_) {
-          // ignore parse errors
-        }
-      }
-
-      // Map server message to field errors when possible
-      if (serverMsg != null) {
-        final lower = serverMsg.toLowerCase();
-        if (lower.contains('usuario') || lower.contains('no encontrado')) {
-          setState(() {
-            _emailError = serverMsg;
-            _passwordError = null;
-            _submitting = false;
-          });
-          return;
-        }
-        if (lower.contains('contraseña') || lower.contains('password')) {
-          setState(() {
-            _passwordError = serverMsg;
-            _emailError = null;
-            _submitting = false;
-          });
-          return;
-        }
-      }
-
-      // fallback: show generic error
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err.toString())));
+      // Política solicitada: no mostrar textos largos. Solo:
+      // - "Contraseña incorrecta" para cualquier error de credenciales u otro
+      // - Error de red mínimo si es claramente un problema de conexión
+      final errStr = err.toString().toLowerCase();
+      final isNetwork = errStr.contains('connection') || errStr.contains('timeout');
+      setState(() {
+        _submitting = false;
+        _emailError = null;
+        _passwordError = isNetwork ? 'Error de red. Intenta nuevamente.' : 'Contraseña incorrecta';
+      });
     });
   }
 }

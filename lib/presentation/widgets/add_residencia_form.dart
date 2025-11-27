@@ -35,18 +35,18 @@ class _AddResidenciaFormState extends State<AddResidenciaForm> {
   final _departamentoCtrl = TextEditingController();
   final Set<String> _selectedServicios = {};
   bool _useMyContact = true;
-  final List<String> _availableServicios = [
+      final List<String> _availableServicios = [
     'Lavadora',
-    'Comedor',
+    'Pensión',
     'Limpieza',
     'Parking',
     'Sala de estudio',
     'Seguridad',
     'Horario de recepción',
   ];
-  final Map<String, IconData> _serviceIcons = {
+    final Map<String, IconData> _serviceIcons = {
     'Lavadora': Icons.local_laundry_service,
-    'Comedor': Icons.restaurant,
+    'Pensión': Icons.restaurant,
     'Limpieza': Icons.cleaning_services,
     'Parking': Icons.local_parking,
     'Sala de estudio': Icons.menu_book,

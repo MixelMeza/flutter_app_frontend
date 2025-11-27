@@ -17,6 +17,7 @@ import 'preferences.dart';
 import 'leading_icon.dart';
 import 'styled_card.dart';
 import 'mis_residencias.dart';
+import 'robust_image.dart';
 
 // Top-level helper for compute() to decode base64 into bytes off the UI thread.
 Uint8List _decodeBase64ToBytes(String b64) => base64Decode(b64);
@@ -255,6 +256,9 @@ class _HomePageState extends State<HomePage> {
     final role = _roleCandidate.isNotEmpty ? _roleCandidate : widget.role;
 
     final email = pickString(['email', 'correo', 'mail']) ;
+    // If backend provides an empty value for email verification, treat as not verified
+    final emailVerificadoRaw = pickString(['email_verificado', 'emailVerificado', 'email_confirmado', 'emailConfirmado']);
+    final isEmailVerified = emailVerificadoRaw.trim().isNotEmpty && emailVerificadoRaw.toLowerCase() != 'false' && emailVerificadoRaw.toLowerCase() != '0';
     final telefono = pickString(['telefono', 'phone', 'telefono_movil', 'telefono_mobile']);
     final ubicacion = pickString(['ubicacion', 'direccion', 'location']);
     final contratos = pickInt(['n_contratos', 'nContratos', 'contratos']);
@@ -268,11 +272,18 @@ class _HomePageState extends State<HomePage> {
 
     final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        try {
+          await auth.refreshProfile();
+        } catch (_) {}
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
           // Header
           Container(
             padding: const EdgeInsets.all(16),
@@ -288,31 +299,25 @@ class _HomePageState extends State<HomePage> {
                   height: 72,
                   decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white24, width: 2)),
                   child: ClipOval(
-                    child: fotoUrl.isNotEmpty
-                        ? (fotoUrl.startsWith('data:')
-                            ? FutureBuilder<Uint8List>(
-                                future: compute(_decodeBase64ToBytes, fotoUrl.split(',').last),
-                                builder: (context, snap) {
-                                  if (snap.connectionState == ConnectionState.done && snap.hasData) {
-                                    return Image.memory(
-                                      snap.data!,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => _avatarFallback(displayName),
-                                    );
-                                  }
-                                  if (snap.hasError) return _avatarFallback(displayName);
-                                  return Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70));
-                                },
-                              )
-                            : Image.network(
-                                    fotoUrl,
-                                    fit: BoxFit.cover,
-                                    // Small avatar — limit decoded size to reduce memory usage.
-                                    cacheWidth: (72 * MediaQuery.of(context).devicePixelRatio).round(),
-                                    errorBuilder: (_, __, ___) => _avatarFallback(displayName),
-                                  ))
-                        : _avatarFallback(displayName),
-                  ),
+                      child: fotoUrl.isNotEmpty
+                          ? (fotoUrl.startsWith('data:')
+                              ? FutureBuilder<Uint8List>(
+                                  future: compute(_decodeBase64ToBytes, fotoUrl.split(',').last),
+                                  builder: (context, snap) {
+                                    if (snap.connectionState == ConnectionState.done && snap.hasData) {
+                                      return Image.memory(
+                                        snap.data!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => _avatarFallback(displayName),
+                                      );
+                                    }
+                                    if (snap.hasError) return _avatarFallback(displayName);
+                                    return Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70));
+                                  },
+                                )
+                              : RobustImage(source: fotoUrl, fit: BoxFit.cover, width: 72, height: 72))
+                          : _avatarFallback(displayName),
+                    ),
                 ),
               const SizedBox(width: 12),
               Expanded(
@@ -342,6 +347,27 @@ class _HomePageState extends State<HomePage> {
           ),
 
           const SizedBox(height: 16),
+
+          // Email verification notice (only if not verified)
+          if (!isEmailVerified)
+            StyledCard(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.info, color: Colors.orange),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Confirma tu correo', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Text('Tu email no está verificado. Hemos enviado un enlace de confirmación al correo asociado a tu cuenta. Revisa tu bandeja de entrada y spam.',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text('Correo: ' + email, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
+                    ],
+                  ]),
+                ),
+              ]),
+            ),
 
           // Contact card
           StyledCard(
@@ -440,7 +466,8 @@ class _HomePageState extends State<HomePage> {
                 ),
             ),
           ]),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -476,9 +503,17 @@ class _HomePageState extends State<HomePage> {
 
     final items = _buildItems(widget.role);
 
-    // Determine which index corresponds to the MisResidencias page (if present)
+    // Determine which index corresponds to the MisResidencias and Perfil pages
     int residenciasIndex = -1;
-    if (widget.role == 'propietario') residenciasIndex = 1;
+    int profileIndex = -1;
+    if (widget.role == 'propietario') {
+      residenciasIndex = 1;
+      profileIndex = 4;
+    } else if (widget.role == 'admin') {
+      profileIndex = 3;
+    } else {
+      profileIndex = 4;
+    }
 
     // Determine page count based on role
     final int pageCount = (widget.role == 'admin') ? 4 : 5;
@@ -491,6 +526,11 @@ class _HomePageState extends State<HomePage> {
         physics: const BouncingScrollPhysics(),
         onPageChanged: (i) {
           setState(() => _index = i);
+          // If user swiped to Perfil, refresh profile data
+          if (i == profileIndex) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            try { auth.refreshProfile(); } catch (_) {}
+          }
         },
         itemBuilder: (context, i) => _pageForIndex(i, widget.role),
       ),
@@ -506,6 +546,13 @@ class _HomePageState extends State<HomePage> {
           _pageController.animateToPage(i, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
           setState(() => _index = i);
 
+          // If the user tapped the 'Explorar' icon (index 0), request ExploreMap to reload markers
+          if (i == 0) {
+            try {
+              ExploreMap.requestReload();
+            } catch (_) {}
+          }
+
           // If the user tapped the 'Residencias' icon, trigger a reload via AuthProvider
           if (i == residenciasIndex) {
             final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -514,6 +561,16 @@ class _HomePageState extends State<HomePage> {
               auth.reloadResidencias();
             } catch (e) {
               debugPrint('[HomePage] error reloading residencias via provider: $e');
+            }
+          }
+
+          // If the user tapped the 'Perfil' icon, refresh profile data
+          if (i == profileIndex) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            try {
+              auth.refreshProfile();
+            } catch (e) {
+              debugPrint('[HomePage] error refreshing profile via provider: $e');
             }
           }
         },

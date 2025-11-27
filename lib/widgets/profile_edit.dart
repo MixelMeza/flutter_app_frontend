@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'photo_cropper.dart';
+import 'robust_image.dart';
 import 'leading_icon.dart';
 import '../presentation/providers/auth_provider.dart';
 // cache persistence handled via AuthProvider
@@ -479,17 +480,12 @@ class _ProfileEditState extends State<ProfileEdit> {
     // If it's a remote URL, show network image preview so the user sees
     // how the foto will appear before editing.
     if (txt.startsWith('http://') || txt.startsWith('https://')) {
-      return Image.network(
-        txt,
+      return RobustImage(
+        source: txt,
         width: 104,
         height: 104,
         fit: BoxFit.cover,
-        // Limit decoded image size to lower memory pressure for avatar preview.
-        cacheWidth: (104 * MediaQuery.of(context).devicePixelRatio).round(),
-        errorBuilder: (ctx, error, stack) {
-          debugPrint('[ProfileEdit] Image.network error: $error');
-          return Container(color: Theme.of(context).cardColor, child: Center(child: Icon(Icons.person, size: 48, color: Theme.of(context).iconTheme.color)));
-        },
+        borderRadius: BorderRadius.zero,
       );
     }
     // fallback placeholder

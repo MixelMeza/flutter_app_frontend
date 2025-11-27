@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme.dart';
 import 'di/locator.dart';
+import 'utils/preload_fonts.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'presentation/providers/auth_provider.dart';
 import 'data/datasources/local_data_source.dart';
 import 'domain/usecases/login_usecase.dart';
@@ -13,7 +15,7 @@ import 'domain/usecases/register_user_usecase.dart';
 import 'domain/usecases/update_profile_usecase.dart';
 import 'widgets/login_version7.dart';
 import 'widgets/register_version7.dart';
-import 'services/api_service.dart';
+import 'services/api_service.dart' as api_service;
 import 'services/cache_service.dart';
 // connectivity import removed — not used in this file
 import 'widgets/home_page.dart';
@@ -27,6 +29,13 @@ void main() async {
     PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // ~50 MB
   } catch (_) {}
   await setupLocator();
+
+  // Try to preload the Poppins font files so UI renders with the intended
+  // font as early as possible. This will silently continue if the network
+  // fetch fails.
+  try {
+    await preloadPoppinsFonts();
+  } catch (_) {}
 
   // Resolve required usecases and local data source here so we fail fast
   final loginUseCase = locator<LoginUseCase>();
@@ -79,6 +88,7 @@ class _MainAppState extends State<MainApp> {
 
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<void>? _authErrorSub;
 
   @override
   void initState() {
@@ -185,6 +195,42 @@ class _MainAppState extends State<MainApp> {
       },
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
+          // Subscribe once to global auth error stream to enforce logout
+          if (_authErrorSub == null) {
+            _authErrorSub = api_service.ApiService.onAuthError.listen((_) async {
+              try {
+                // Use navigator key context to find the provider and logout
+                final ctx = _navigatorKey.currentContext;
+                if (ctx != null) {
+                  final provider = Provider.of<AuthProvider>(ctx, listen: false);
+                  await provider.logout();
+                }
+              } catch (_) {}
+
+              // Also clear any locally cached token/profile in MainApp and local data source
+              try {
+                await widget.localDataSource.clearAuthToken();
+              } catch (_) {}
+              setState(() {
+                _hasValidToken = false;
+                _cachedProfile = null;
+                _cachedRole = null;
+                _prefillEmail = null;
+                _displayName = null;
+              });
+
+              // Navegación explícita: reemplaza la ruta actual por la pantalla de login
+              try {
+                final nav = _navigatorKey.currentState;
+                if (nav != null) {
+                  nav.pushNamedAndRemoveUntil('/', (route) => false);
+                }
+              } catch (_) {}
+
+              // Show a global message via scaffold messenger y asegura que la UI va al login
+              _scaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(content: Text('Token inválido. Se ha cerrado la sesión.')));
+            });
+          }
           final themeData = auth.isDark ? AppTheme.darkTheme() : AppTheme.lightTheme();
 
           return AnimatedTheme(
@@ -332,18 +378,7 @@ class _MainAppState extends State<MainApp> {
                                     _displayName = auth.displayName ?? _displayName;
                                   });
                                 } catch (e) {
-                                  if (e is ApiException && e.statusCode == 401) {
-                                    rethrow;
-                                  }
-                                  if (e is ApiException) {
-                                    final code = e.statusCode;
-                                    if (code == null || code >= 500) {
-                                      var msg = e.message;
-                                      _showStyledMessage('Error al iniciar sesión: $msg', MessageSeverity.error);
-                                    }
-                                  } else {
-                                    _showStyledMessage('Error al iniciar sesión: ${e.toString()}', MessageSeverity.error);
-                                  }
+                                  // No mostrar ningún mensaje ni snackbar en error de login, solo el inline en el widget de login.
                                 } finally {
                                   if (_navigatorKey.currentState?.canPop() == true) _navigatorKey.currentState?.pop();
                                 }

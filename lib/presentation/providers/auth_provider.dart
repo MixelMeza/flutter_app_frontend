@@ -10,6 +10,7 @@ import '../../core/network/api_client.dart';
 import '../../services/api_service.dart' as api_service;
 import '../../data/datasources/residencia_remote_data_source.dart';
 import '../../data/repositories/residencia_repository_impl.dart';
+import '../../domain/usecases/get_residencia_by_id_usecase.dart';
 import '../../domain/usecases/get_my_residencias_simple_usecase.dart';
 import '../../config/api.dart';
 
@@ -129,6 +130,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Fetch a single residencia detail by id using the existing clean-architecture pieces.
+  Future<Map<String, dynamic>> getResidenciaById(int id) async {
+    // ensure token is available in ApiService like other methods
+    try {
+      if (api_service.ApiService.authToken == null) await api_service.ApiService.loadAuthToken();
+    } catch (_) {}
+
+    final base = baseUrl;
+    final remote = ResidenciaRemoteDataSource(baseUrl: base);
+    final repo = ResidenciaRepositoryImpl(remote);
+    final usecase = GetResidenciaByIdUseCase(repo);
+    final result = await usecase.call(id);
+    return result;
+  }
+
   Future<void> login(String email, String password) async {
     await _login.call(email, password);
     // After a successful login, ensure ApiService has the token loaded into memory
@@ -231,5 +247,40 @@ class AuthProvider extends ChangeNotifier {
       await CacheService.saveProfile(newProfile);
     } catch (_) {}
     notifyListeners();
+  }
+
+  /// Refresh the user profile from the server and update local cache.
+  Future<void> refreshProfile() async {
+    try {
+      final updated = await _getProfile.call();
+      profile = updated;
+      try {
+        await CacheService.saveProfile(updated);
+      } catch (_) {}
+      displayName = updated['displayName'] ?? updated['nombre'] ?? updated['user'] ?? updated['username'] ?? updated['email'];
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AuthProvider] refreshProfile failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Update a single residencia's `ubicacion` locally and notify listeners.
+  /// If the residencia is not present in the current `myResidencias` list,
+  /// falls back to reloading the whole list from the server.
+  Future<void> updateResidenciaUbicacion(int id, Map<String, dynamic> ubicacion) async {
+    final idx = myResidencias.indexWhere((e) {
+      final key = e['id'] ?? e['uuid'] ?? e['residenciaId'];
+      if (key == null) return false;
+      return key.toString() == id.toString();
+    });
+    if (idx != -1) {
+      final copy = Map<String, dynamic>.from(myResidencias[idx]);
+      copy['ubicacion'] = ubicacion;
+      myResidencias[idx] = copy;
+      notifyListeners();
+    } else {
+      await reloadResidencias();
+    }
   }
 }
