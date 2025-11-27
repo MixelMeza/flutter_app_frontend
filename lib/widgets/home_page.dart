@@ -17,6 +17,7 @@ import 'preferences.dart';
 import 'leading_icon.dart';
 import 'styled_card.dart';
 import 'mis_residencias.dart';
+import 'inquilino_principal.dart';
 
 // Top-level helper for compute() to decode base64 into bytes off the UI thread.
 Uint8List _decodeBase64ToBytes(String b64) => base64Decode(b64);
@@ -51,8 +52,7 @@ class HomePage extends StatefulWidget {
 /// Lightweight deferred loader for `ExploreMap`.
 /// Shows a small placeholder for `delay` then replaces with the real map.
 class _DeferredExplore extends StatefulWidget {
-  final Duration delay;
-  const _DeferredExplore({Key? key, this.delay = const Duration(milliseconds: 450)}) : super(key: key);
+  const _DeferredExplore({Key? key}) : super(key: key);
 
   @override
   State<_DeferredExplore> createState() => _DeferredExploreState();
@@ -64,7 +64,7 @@ class _DeferredExploreState extends State<_DeferredExplore> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(widget.delay, () {
+    Future.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       setState(() => _showMap = true);
     });
@@ -99,7 +99,7 @@ class _HomePageState extends State<HomePage> {
         case 1:
           return const MisResidencias();
         case 2:
-          return _page('Principal', Icons.home);
+          return const InquilinoPrincipal(role: 'propietario'); // Vista principal del propietario
         case 3:
           return _page('Contratos', Icons.description);
         case 4:
@@ -125,9 +125,9 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return const _DeferredExplore();
       case 1:
-        return _page('Alquiler', Icons.key);
+        return _page('Alquiler', Icons.key); 
       case 2:
-        return _page('Principal', Icons.home);
+        return const InquilinoPrincipal(role: 'inquilino'); // Nueva vista principal del inquilino
       case 3:
         return _page('Favoritos', Icons.favorite);
       case 4:
