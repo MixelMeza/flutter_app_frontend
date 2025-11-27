@@ -187,34 +187,38 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> toggleTheme(bool v) async {
-    isDark = v;
     try {
-      await _localDataSource.saveThemePreference(v);
-    } catch (_) {}
-    notifyListeners();
-  }
-
-  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
-    return await _registerUser.call(payload);
-  }
-
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> updates) async {
-    try {
-      final updated = await _updateProfile.call(updates);
-      profile = updated;
-      displayName = updated['displayName'] ?? updated['nombre'] ?? updated['username'] ?? updated['email'];
+      final me = await _getProfile.call();
+      profile = me;
+      // Guardar automáticamente el perfil en caché local si no existe
       try {
-        await CacheService.saveProfile(updated);
+        final cached = await CacheService.getProfile();
+        if (cached == null || cached.isEmpty) {
+          await CacheService.saveProfile(me);
+        }
       } catch (_) {}
-      notifyListeners();
-      return updated;
-    } on ApiException catch (e) {
-      if (e.statusCode == 401) {
-        // token expired or unauthorized — clear session
-        try {
-          await logout();
-        } catch (_) {}
-        throw Exception('Token expirado. Se ha cerrado la sesión.');
+      displayName = me['displayName'] ?? me['nombre'] ?? me['user'] ?? me['username'] ?? me['email'];
+      final maybe = me['rol'] ?? me['role'] ?? me['tipo'] ?? me['rol_id'] ?? me['roles'];
+      if (maybe is String) {
+        final lower = maybe.toLowerCase();
+        if (lower.contains('propiet') || lower.contains('owner')) {
+          role = 'propietario';
+        } else if (lower.contains('admin')) {
+          role = 'admin';
+        } else {
+          role = 'inquilino';
+        }
+      } else if (maybe is int) {
+        if (maybe == 1) {
+          role = 'propietario';
+        } else if (maybe == 2) {
+          role = 'inquilino';
+        }
+      } else if (maybe is List && maybe.isNotEmpty) {
+        final first = maybe.first;
+        if (first is String) role = first;
+      }
+    } catch (_) {}
       }
       rethrow;
     }

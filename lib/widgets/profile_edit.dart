@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'photo_cropper.dart';
 import 'leading_icon.dart';
 import '../presentation/providers/auth_provider.dart';
+import '../presentation/providers/connectivity_provider.dart';
 // cache persistence handled via AuthProvider
 
 class ProfileEdit extends StatefulWidget {
@@ -188,6 +189,7 @@ class _ProfileEditState extends State<ProfileEdit> {
 
   Future<void> _onSave() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
@@ -213,38 +215,40 @@ class _ProfileEditState extends State<ProfileEdit> {
 
     setState(() => _loading = true);
     try {
-      // If there are no server updates but there is a local cropped image,
-      // save the image locally into the profile cache and notify provider.
+      // Si no hay internet, guardar solo localmente
+      if (!isOnline) {
+        final mergedLocal = Map<String, dynamic>.from(_original)..addAll(updates);
+        if (_croppedBytes != null) {
+          final dataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
+          mergedLocal['foto_url'] = dataUri;
+        }
+        await auth.setLocalProfile(mergedLocal);
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(content: Text('Sin conexión: cambios guardados localmente'), backgroundColor: Colors.orange[700]));
+        navigator.pop(mergedLocal);
+        return;
+      }
+
+      // Si hay internet, proceder como antes
       if (updates.isEmpty && _croppedBytes != null) {
         final dataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
         final mergedLocal = Map<String, dynamic>.from(_original);
         mergedLocal['foto_url'] = dataUri;
-        // update provider locally and persist
         await auth.setLocalProfile(mergedLocal);
         if (!mounted) return;
         messenger.showSnackBar(SnackBar(content: Text('Foto actualizada localmente'), backgroundColor: Colors.green[700]));
         navigator.pop(mergedLocal);
         return;
       }
-      // Some backends expect the full resource on update. Try sending only
-      // changed fields first; if server fails, fallback to merged full profile.
       Map<String, dynamic> payload = Map<String, dynamic>.from(updates);
       Map<String, dynamic> merged = Map<String, dynamic>.from(_original)..addAll(updates);
-
-      // If user changed the photo locally, include it in the merged local
-      // profile so we can persist it after a successful server update.
       String? localDataUri;
       if (_croppedBytes != null) {
         localDataUri = 'data:image/png;base64,${base64Encode(_croppedBytes!)}';
         merged['foto_url'] = localDataUri;
       }
-
-      // Attempt update with minimal payload first. Do NOT fallback to sending
-      // the full merged profile — some backends cannot safely merge collection
-      // fields and will throw server-side exceptions (ConcurrentModification).
       try {
         final result = await auth.updateProfile(payload);
-        // persist local photo if present
         if (localDataUri != null) {
           final mergedLocal = Map<String, dynamic>.from(result)..addAll({'foto_url': localDataUri});
           await auth.setLocalProfile(mergedLocal);
@@ -258,7 +262,6 @@ class _ProfileEditState extends State<ProfileEdit> {
         navigator.pop(result);
         return;
       } catch (e) {
-        // Surface the server error instead of retrying with a larger payload.
         debugPrint('[ProfileEdit] updateProfile failed: $e');
         if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red[700]));
         return;
